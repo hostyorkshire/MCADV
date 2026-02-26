@@ -219,6 +219,18 @@ meshcore.py  ─── _dispatch_channel_message() ──▶ handle_message()
 
 ---
 
+## Performance
+
+MCADV is **optimized for Raspberry Pi** hardware with:
+- ⚡ Fast startup (instant in offline mode)
+- 💾 Low memory usage (~20MB for 50 concurrent players)
+- 💿 Reduced SD card wear (batched I/O)
+- 🔌 HTTP connection pooling for faster LLM calls
+
+See [PERFORMANCE.md](PERFORMANCE.md) for details on optimizations and benchmarks.
+
+---
+
 ## Running the tests
 
 ```bash

@@ -45,5 +45,6 @@ python3 adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1
 ## Documentation Files
 
 - `README.md` - Main documentation
+- `PERFORMANCE.md` - Performance optimizations for Pi
 - `LICENSE` - Apache 2.0 license
 - `STRUCTURE.md` - This file
