@@ -20,7 +20,7 @@ Gameplay modes:
   Per-user (default) - each player has their own independent adventure
   Shared (--shared)  - one adventure per channel; anyone can advance the story
 
-Messages are kept under 200 characters for LoRa compatibility.
+Messages longer than 200 characters are split across multiple LoRa transmissions.
 """
 
 import argparse
@@ -381,10 +381,35 @@ class AdventureBot:
         return message.sender
 
     def _send_reply(self, text: str, channel_idx: int) -> None:
-        """Send a reply via MeshCore, hard-capping at MAX_MSG_LEN characters."""
-        if len(text) > MAX_MSG_LEN:
-            text = text[: MAX_MSG_LEN - 1] + "…"
-        self.mesh.send_message(text, "text", channel_idx=channel_idx)
+        """
+        Send a reply via MeshCore, splitting into multiple messages if needed.
+        
+        Messages longer than MAX_MSG_LEN are split across multiple LoRa transmissions
+        with markers (1/N, 2/N, etc.) to indicate the part number.
+        """
+        if len(text) <= MAX_MSG_LEN:
+            self.mesh.send_message(text, "text", channel_idx=channel_idx)
+            return
+        
+        # Split message into multiple parts
+        # Reserve space for " (X/Y)" suffix where Y could be up to 2 digits
+        suffix_space = 7  # " (99/99)" worst case
+        chunk_size = MAX_MSG_LEN - suffix_space
+        
+        chunks = []
+        remaining = text
+        while remaining:
+            chunks.append(remaining[:chunk_size])
+            remaining = remaining[chunk_size:]
+        
+        # Send each chunk with part indicator
+        total_parts = len(chunks)
+        for i, chunk in enumerate(chunks, 1):
+            msg = f"{chunk} ({i}/{total_parts})"
+            self.mesh.send_message(msg, "text", channel_idx=channel_idx)
+            # Small delay between messages to avoid overwhelming the LoRa radio
+            if i < total_parts:
+                time.sleep(0.1)
 
     # ------------------------------------------------------------------
     # Session management
@@ -445,18 +470,18 @@ class AdventureBot:
 
     def _format_story_message(self, text: str, choices: List[str]) -> str:
         """
-        Combine story text and labelled choices into a single LoRa message.
+        Combine story text and labelled choices into a single message.
 
         Format:  <text>\\n1:Choice A 2:Choice B 3:Choice C
 
         Terminal nodes (empty choices) return just the text.
-        The result is capped at MAX_MSG_LEN characters.
+        Long messages will be split by _send_reply() when transmitted.
         """
         if not choices:
-            return text[:MAX_MSG_LEN]
+            return text
         choices_str = " ".join(f"{i + 1}:{c}" for i, c in enumerate(choices))
         msg = f"{text}\n{choices_str}"
-        return msg[:MAX_MSG_LEN]
+        return msg
 
     # ------------------------------------------------------------------
     # LLM backends
@@ -614,7 +639,7 @@ class AdventureBot:
                 "theme": theme,
                 "status": "finished" if is_terminal else "active",
             })
-            return story[:MAX_MSG_LEN]
+            return story
 
         # All LLM backends unavailable – use built-in story tree
         self.logger.info(f"LLM unavailable, using offline story tree for session {key!r}")

@@ -88,21 +88,52 @@ class TestSendReply(unittest.TestCase):
         self.bot._send_reply("Hello world", 1)
         self.bot.mesh.send_message.assert_called_once_with("Hello world", "text", channel_idx=1)
 
-    def test_long_message_truncated_to_max_len(self):
+    def test_long_message_split_into_multiple_parts(self):
+        """Messages longer than MAX_MSG_LEN should be split across multiple transmissions."""
         long_text = "A" * (MAX_MSG_LEN + 50)
         self.bot._send_reply(long_text, 1)
-        sent = last_reply(self.bot)
-        self.assertLessEqual(len(sent), MAX_MSG_LEN)
-        self.assertTrue(sent.endswith("…"))
+        
+        # Should be called multiple times
+        self.assertGreater(self.bot.mesh.send_message.call_count, 1)
+        
+        # Each call should be <= MAX_MSG_LEN
+        for call in self.bot.mesh.send_message.call_args_list:
+            sent_msg = call[0][0]
+            self.assertLessEqual(len(sent_msg), MAX_MSG_LEN)
+            # Each part should have a part indicator like " (1/2)"
+            if self.bot.mesh.send_message.call_count > 1:
+                self.assertRegex(sent_msg, r" \(\d+/\d+\)$")
 
-    def test_exact_max_len_not_truncated(self):
+    def test_exact_max_len_not_split(self):
+        """Messages exactly at MAX_MSG_LEN should not be split."""
         text = "B" * MAX_MSG_LEN
         self.bot._send_reply(text, 1)
+        self.bot.mesh.send_message.assert_called_once()
         self.assertEqual(len(last_reply(self.bot)), MAX_MSG_LEN)
 
     def test_correct_channel_idx_forwarded(self):
         self.bot._send_reply("hi", 3)
         self.bot.mesh.send_message.assert_called_once_with("hi", "text", channel_idx=3)
+    
+    def test_multi_part_messages_have_sequential_numbers(self):
+        """Multi-part messages should have sequential part numbers."""
+        long_text = "X" * 500  # Long enough to split into multiple parts
+        self.bot._send_reply(long_text, 1)
+        
+        parts = []
+        for call in self.bot.mesh.send_message.call_args_list:
+            sent_msg = call[0][0]
+            parts.append(sent_msg)
+        
+        # Verify sequential numbering
+        import re
+        for i, part in enumerate(parts, 1):
+            match = re.search(r"\((\d+)/(\d+)\)$", part)
+            self.assertIsNotNone(match, f"Part {i} should have part indicator")
+            part_num = int(match.group(1))
+            total = int(match.group(2))
+            self.assertEqual(part_num, i)
+            self.assertEqual(total, len(parts))
 
 
 # ---------------------------------------------------------------------------
@@ -119,6 +150,7 @@ class TestFormatStoryMessage(unittest.TestCase):
         self.assertIn("1:Go in", msg)
         self.assertIn("2:Turn back", msg)
         self.assertIn("3:Shout", msg)
+        # Short messages should be short
         self.assertLessEqual(len(msg), MAX_MSG_LEN)
 
     def test_terminal_node_returns_text_only(self):
@@ -126,11 +158,14 @@ class TestFormatStoryMessage(unittest.TestCase):
         self.assertEqual(msg, "You win. THE END")
         self.assertNotIn("1:", msg)
 
-    def test_oversized_message_capped(self):
+    def test_oversized_message_not_capped(self):
+        """_format_story_message no longer caps; splitting is done by _send_reply."""
         text = "X" * 180
         choices = ["Go left", "Go right", "Stay put"]
         msg = self.bot._format_story_message(text, choices)
-        self.assertLessEqual(len(msg), MAX_MSG_LEN)
+        # The formatted message can exceed MAX_MSG_LEN; _send_reply will split it
+        expected_length = len(text) + 1 + len("1:Go left 2:Go right 3:Stay put")
+        self.assertEqual(len(msg), expected_length)
 
     def test_newline_separates_text_and_choices(self):
         msg = self.bot._format_story_message("A scene.", ["A", "B", "C"])
@@ -476,11 +511,13 @@ class TestLLMIntegration(unittest.TestCase):
             self.bot._generate_story("Alice", choice=None, theme="fantasy")
         self.assertEqual(self.bot._get_session("Alice")["status"], "finished")
 
-    def test_llm_result_capped_at_max_msg_len(self):
+    def test_llm_result_not_capped(self):
+        """_generate_story no longer caps; splitting is done by _send_reply."""
         long_story = "A" * 300
         with patch.object(self.bot, "_call_ollama", return_value=long_story):
             result = self.bot._generate_story("Alice", choice=None, theme="fantasy")
-        self.assertLessEqual(len(result), MAX_MSG_LEN)
+        # The result from _generate_story can be long; _send_reply will split it
+        self.assertEqual(len(result), 300)
 
 
 # ---------------------------------------------------------------------------

@@ -5,8 +5,9 @@ An AI-powered **Choose Your Own Adventure** bot for the
 Designed to run on a **Raspberry Pi Zero** connected to a MeshCore companion
 radio via USB serial.
 
-Players interact on a dedicated MeshCore channel.  Every message fits within
-**200 characters** to respect LoRa's small payload budget.
+Players interact on a dedicated MeshCore channel.  Messages longer than
+**200 characters** are automatically split across multiple LoRa transmissions to
+respect the payload budget.
 
 ---
 
