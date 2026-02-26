@@ -4,6 +4,17 @@ AI-powered Choose Your Own Adventure bot for MeshCore LoRa mesh networks.
 
 **Offline-First Architecture:** MCADV runs entirely offline using locally-hosted AI models via Ollama—requiring no internet access whatsoever. The network depends solely on the meshcore LoRa mesh network, making it truly independent from external connectivity.
 
+## 🎭 Collaborative Storytelling
+
+**MCADV features collaborative storytelling** where all users on the **#adventures** channel participate in the same shared story. This isn't a solo adventure—it's a community effort where:
+
+- **Everyone shares the same story**: When one user makes a choice, the story progresses for everyone
+- **Work together to reach the end**: Collaborate to find the best path without being killed
+- **Stories continue until reset**: The adventure runs until someone uses `!reset`, then a new story begins
+- **One channel, one story**: All interaction happens on the #adventures channel for the collaborative experience
+
+This creates a unique, dynamic storytelling experience where the mesh community works together to navigate challenges and reach conclusions.
+
 ## Quick Setup
 
 For detailed setup instructions with virtual environment (recommended):
