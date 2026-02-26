@@ -153,7 +153,7 @@ See **[HARDWARE.md](HARDWARE.md)** for complete hardware recommendations includi
 
 ### For Standalone Deployments
 
-**Minimum:** Raspberry Pi 4 (4GB+ RAM) with cloud LLM (OpenAI/Groq)  
+**Minimum:** Raspberry Pi 4 (4GB+ RAM) with offline story trees  
 **Recommended:** Raspberry Pi 4/5 (8GB RAM) with local Ollama + SSD storage  
 **Development:** Desktop PC running Ubuntu with LoRa radio via USB
 
@@ -163,15 +163,12 @@ See **[HARDWARE.md](HARDWARE.md)** for complete hardware recommendations includi
 
 ### Option 1 – LLM backend
 
-The bot tries each backend in order and falls back to the next if unavailable.
+The bot tries Ollama first, then falls back to offline story trees if unavailable.
 
 | Priority | Backend | How to enable | Cost | Needs internet? |
 |----------|---------|--------------|------|----------------|
-| 1 | **Remote LLM Server** | `--llm-server-url http://pi5.local:5000` | Free | No (LAN only) |
-| 2 | **Ollama (local/LAN)** | `--ollama-url http://<host>:11434 --model llama3.2:1b` | Free | No (LAN only) |
-| 3 | **OpenAI** | `--openai-key sk_…` or `$OPENAI_API_KEY` | ~$0.0002/turn | Yes |
-| 4 | **Groq** | `--groq-key gsk_…` or `$GROQ_API_KEY` | Free tier | Yes |
-| 5 | **Offline story trees** | *(automatic fallback, always available)* | Free | No |
+| 1 | **Ollama (local/LAN)** | `--ollama-url http://<host>:11434 --model llama3.2:1b` | Free | No (LAN only) |
+| 2 | **Offline story trees** | *(automatic fallback, always available)* | Free | No |
 
 #### Choosing an LLM backend
 
@@ -185,8 +182,6 @@ The bot tries each backend in order and falls back to the next if unavailable.
 **For Pi 4/5 standalone (current implementation):**
 - **Ollama on same device** – Pi 4/5 with 4GB+ RAM can run small models
 - **Ollama on your LAN** – run `ollama serve` on a laptop, desktop, or another Pi
-- **Groq free tier** – very fast cloud inference, generous free quota
-- **OpenAI** – reliable, small cost per adventure
 - **No LLM / offline** – three fully self-contained story trees (fantasy, sci-fi, horror)
 - **Storage:** SSD via USB recommended for model storage (2-8GB per model)
 
@@ -238,7 +233,7 @@ venv/bin/python3 adventure_bot.py --terminal --debug
 - ✅ No radio hardware needed
 - ✅ Works on any Python 3.7+ system (Linux, macOS, Windows)
 - ✅ All story themes available (fantasy, scifi, horror)
-- ✅ Full LLM support (Ollama, OpenAI, Groq, offline)
+- ✅ Full LLM support (Ollama, offline)
 - ✅ Perfect for development, testing, and just playing
 
 **Example session:**
@@ -326,7 +321,6 @@ For now, use Pi 4/5 in standalone mode for all deployments.
 ```
 usage: adventure_bot.py [-h] [-p PORT] [-b BAUD] [-d] [-a] [-t] [-c CHANNEL_IDX]
                         [--ollama-url OLLAMA_URL] [--model MODEL]
-                        [--openai-key OPENAI_KEY] [--groq-key GROQ_KEY]
 
 options:
   -h, --help         Show this help message and exit
@@ -338,11 +332,9 @@ options:
   -c, --channel-idx  Only respond on this MeshCore channel index (e.g. 1)
   --ollama-url       Ollama base URL (default: http://localhost:11434)
   --model            Ollama model name (default: llama3.2:1b)
-  --openai-key       OpenAI API key
-  --groq-key         Groq API key
 ```
 
-Environment variables: `OLLAMA_URL`, `OLLAMA_MODEL`, `OPENAI_API_KEY`, `GROQ_API_KEY`
+Environment variables: `OLLAMA_URL`, `OLLAMA_MODEL`
 
 **Examples:**
 ```bash
@@ -355,11 +347,11 @@ python adventure_bot.py --channel-idx 1
 # Radio mode with specific port
 python adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1 --debug
 
-# With Ollama LLM
-python adventure_bot.py --terminal --ollama-url http://localhost:11434
+# With Ollama LLM on local network
+python adventure_bot.py --terminal --ollama-url http://192.168.1.50:11434
 
-# With Groq cloud LLM
-python adventure_bot.py --terminal --groq-key gsk_...
+# With specific Ollama model
+python adventure_bot.py --terminal --model llama3.2:3b
 ```
 
 ---
@@ -400,7 +392,7 @@ meshcore.py  ─── _dispatch_channel_message() ──▶ handle_message()
                                           │           │           │
                                    _generate_story()  │     _clear_session()
                                    ┌──────┴──────┐    │
-                                 Ollama/OpenAI  Offline
+                                 Ollama         Offline
                                    └──────┬──────┘
                                           ▼
                                    mesh.send_message()  ──▶ LoRa radio

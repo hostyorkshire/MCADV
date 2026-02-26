@@ -52,8 +52,6 @@ def make_bot(**kwargs) -> AdventureBot:
         announce=False,
         ollama_url="http://localhost:11434",
         model="test-model",
-        openai_key=None,
-        groq_key=None,
     )
     defaults.update(kwargs)
     bot = AdventureBot(**defaults)
@@ -311,8 +309,6 @@ class TestHandleMessage(unittest.TestCase):
         self.bot = make_bot()
         # Always use offline fallback so tests don't need network
         self.bot._call_ollama = MagicMock(return_value=None)
-        self.bot._call_openai = MagicMock(return_value=None)
-        self.bot._call_groq = MagicMock(return_value=None)
 
     # -- help --
 
@@ -417,8 +413,6 @@ class TestHandleMessage(unittest.TestCase):
     def test_no_filter_accepts_any_channel(self):
         bot = make_bot(allowed_channel_idx=None)
         bot._call_ollama = MagicMock(return_value=None)
-        bot._call_openai = MagicMock(return_value=None)
-        bot._call_groq = MagicMock(return_value=None)
         bot.handle_message(make_msg(content="!help", channel_idx=7))
         bot.mesh.send_message.assert_called_once()
 
@@ -445,26 +439,9 @@ class TestLLMIntegration(unittest.TestCase):
             result = self.bot._generate_story("Alice", choice=None, theme="fantasy")
         self.assertEqual(result, llm_text)
 
-    def test_openai_used_when_ollama_fails(self):
-        llm_text = "A dragon appears.\n1:Run 2:Fight 3:Hide"
+    def test_fallback_used_when_ollama_fails(self):
         with patch.object(self.bot, "_call_ollama", return_value=None):
-            with patch.object(self.bot, "_call_openai", return_value=llm_text):
-                result = self.bot._generate_story("Alice", choice=None, theme="fantasy")
-        self.assertEqual(result, llm_text)
-
-    def test_groq_used_when_ollama_and_openai_fail(self):
-        llm_text = "A wizard blocks the path.\n1:Parley 2:Charge 3:Sneak"
-        with patch.object(self.bot, "_call_ollama", return_value=None):
-            with patch.object(self.bot, "_call_openai", return_value=None):
-                with patch.object(self.bot, "_call_groq", return_value=llm_text):
-                    result = self.bot._generate_story("Alice", choice=None, theme="fantasy")
-        self.assertEqual(result, llm_text)
-
-    def test_fallback_used_when_all_llm_fail(self):
-        with patch.object(self.bot, "_call_ollama", return_value=None):
-            with patch.object(self.bot, "_call_openai", return_value=None):
-                with patch.object(self.bot, "_call_groq", return_value=None):
-                    result = self.bot._generate_story("Alice", choice=None, theme="fantasy")
+            result = self.bot._generate_story("Alice", choice=None, theme="fantasy")
         self.assertIn("crossroads", result)
 
     def test_the_end_marks_session_finished(self):
@@ -569,8 +546,6 @@ class TestMultiMessageIntegration(unittest.TestCase):
         """
         bot = make_bot()
         bot._call_ollama = MagicMock(return_value=None)
-        bot._call_openai = MagicMock(return_value=None)
-        bot._call_groq = MagicMock(return_value=None)
         
         # Create a long LLM response that exceeds MAX_MSG_LEN
         long_story = (
