@@ -1,6 +1,31 @@
-# Existing content with updated Quick Model Selection Guide section
+# MCADV - MeshCore Adventure Bot
 
-#### Quick Model Selection Guide
+AI-powered Choose Your Own Adventure bot for MeshCore LoRa mesh networks.
+
+## Quick Setup
+
+For detailed setup instructions with virtual environment (recommended):
+
+**📖 See [SETUP.md](SETUP.md) for complete installation guide**
+
+Quick start:
+```bash
+# Create virtual environment and install dependencies
+./setup_venv.sh
+
+# Run the bot using wrapper script
+./run_adventure_bot.sh --help
+```
+
+## Documentation
+
+- **[SETUP.md](SETUP.md)** - Virtual environment setup and usage guide
+- **[HARDWARE.md](HARDWARE.md)** - Hardware recommendations
+- **[PERFORMANCE.md](PERFORMANCE.md)** - Performance optimizations
+- **[STRUCTURE.md](STRUCTURE.md)** - Repository structure
+- **[guides/](guides/)** - Detailed setup guides (Ollama, Raspberry Pi, etc.)
+
+## Quick Model Selection Guide
 
 **Best models for CYOA bot:**
 
