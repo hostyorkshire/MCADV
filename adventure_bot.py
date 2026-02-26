@@ -34,12 +34,25 @@ from typing import Dict, List, Optional
 from logging_config import get_adventure_bot_logger, log_startup_info
 from meshcore import MeshCore, MeshCoreMessage
 
-try:
-    import requests
-    from requests.exceptions import RequestException
-except ImportError:
-    print("Error: requests not found. Install with: pip install requests")
-    sys.exit(1)
+# Lazy import for requests - only loaded when LLM backends are used
+# This speeds up startup when running in offline mode
+_requests = None
+_RequestException = None
+
+def _ensure_requests():
+    """Lazy import requests module only when needed for LLM calls"""
+    global _requests, _RequestException
+    if _requests is None:
+        try:
+            import requests as req
+            from requests.exceptions import RequestException as ReqEx
+            _requests = req
+            _RequestException = ReqEx
+        except ImportError:
+            print("Warning: requests not found. LLM backends unavailable. Install with: pip install requests")
+            # Create a dummy exception class so code doesn't crash
+            _RequestException = Exception
+    return _requests, _RequestException
 
 # ---------------------------------------------------------------------------
 # Message length limit
@@ -359,6 +372,8 @@ class AdventureBot:
 
         # Per-user (or per-channel in shared mode) sessions
         self._sessions: Dict = {}
+        self._sessions_dirty = False  # Track if sessions need saving
+        self._last_session_save = time.time()  # For batched saves
         self._load_sessions()
 
         # MeshCore handles all LoRa serial I/O
@@ -399,12 +414,30 @@ class AdventureBot:
         except (json.JSONDecodeError, OSError):
             self._sessions = {}
 
-    def _save_sessions(self) -> None:
-        """Persist sessions to disk."""
+    def _save_sessions(self, force: bool = False) -> None:
+        """
+        Persist sessions to disk with batching to reduce I/O.
+        
+        Sessions are only saved if:
+        - force=True, or
+        - They're marked dirty AND at least 5 seconds have passed since last save
+        
+        This reduces disk writes on Pi's SD card.
+        """
+        if not force and not self._sessions_dirty:
+            return
+        
+        # Batch saves: only write if enough time has passed
+        now = time.time()
+        if not force and (now - self._last_session_save) < 5:
+            return
+        
         try:
             SESSION_FILE.parent.mkdir(exist_ok=True)
             with open(SESSION_FILE, "w") as f:
                 json.dump(self._sessions, f, indent=2)
+            self._sessions_dirty = False
+            self._last_session_save = now
         except OSError as e:
             self.error_logger.error(f"Failed to save sessions: {e}")
 
@@ -416,28 +449,35 @@ class AdventureBot:
             for key, data in self._sessions.items()
             if now - data.get("last_active", 0) > SESSION_EXPIRY_SECONDS
         ]
-        for key in expired:
-            del self._sessions[key]
         if expired:
-            self._save_sessions()
+            for key in expired:
+                del self._sessions[key]
+            self._sessions_dirty = True
+            self._save_sessions()  # Save immediately after cleanup
 
     def _get_session(self, key: str) -> dict:
         """Return the session dict for key, or an empty dict if none exists."""
         return self._sessions.get(key, {})
 
     def _update_session(self, key: str, data: dict) -> None:
-        """Merge data into the session for key and persist."""
+        """Merge data into the session for key and mark for persistence."""
         session = self._sessions.get(key, {})
         session.update(data)
         session["last_active"] = time.time()
         self._sessions[key] = session
-        self._save_sessions()
+        self._sessions_dirty = True
+        # Batched save will happen in main loop or on shutdown
 
     def _clear_session(self, key: str) -> None:
-        """Remove the session for key."""
+        """
+        Remove the session for key and save immediately.
+        
+        Force save to ensure quit/end commands take effect right away.
+        """
         if key in self._sessions:
             del self._sessions[key]
-            self._save_sessions()
+            self._sessions_dirty = True
+            self._save_sessions(force=True)  # Force save when clearing
 
     # ------------------------------------------------------------------
     # Story formatting
@@ -454,9 +494,11 @@ class AdventureBot:
         """
         if not choices:
             return text[:MAX_MSG_LEN]
+        # Pre-calculate to avoid repeated string operations  
         choices_str = " ".join(f"{i + 1}:{c}" for i, c in enumerate(choices))
-        msg = f"{text}\n{choices_str}"
-        return msg[:MAX_MSG_LEN]
+        # Single concatenation is faster than multiple operations
+        result = f"{text}\n{choices_str}"
+        return result[:MAX_MSG_LEN]
 
     # ------------------------------------------------------------------
     # LLM backends
@@ -470,6 +512,9 @@ class AdventureBot:
         server on your LAN) and --model (e.g. llama3.2:1b, tinyllama).
         Returns the generated text or None on any failure.
         """
+        requests, RequestException = _ensure_requests()
+        if requests is None:
+            return None
         try:
             resp = requests.post(
                 f"{self.ollama_url}/api/generate",
@@ -497,6 +542,9 @@ class AdventureBot:
         Returns the generated text or None on any failure.
         """
         if not self.openai_key:
+            return None
+        requests, RequestException = _ensure_requests()
+        if requests is None:
             return None
         try:
             resp = requests.post(
@@ -527,6 +575,9 @@ class AdventureBot:
         Returns the generated text or None on any failure.
         """
         if not self.groq_key:
+            return None
+        requests, RequestException = _ensure_requests()
+        if requests is None:
             return None
         try:
             resp = requests.post(
@@ -726,6 +777,8 @@ class AdventureBot:
         try:
             while self._running:
                 time.sleep(1)
+                # Periodically save sessions to reduce data loss on crashes
+                self._save_sessions()  # Uses batching internally
                 if self.announce and (time.time() - last_announce >= ANNOUNCE_INTERVAL):
                     announce_idx = self.allowed_channel_idx if self.allowed_channel_idx is not None else 0
                     self.mesh.send_message(ANNOUNCE_MESSAGE, "text", channel_idx=announce_idx)
@@ -735,6 +788,7 @@ class AdventureBot:
             self.logger.info("Stopping...")
         finally:
             self._running = False
+            self._save_sessions(force=True)  # Final save on shutdown
             self.mesh.stop()
             print("MCADV stopped.")
             self.logger.info("MCADV stopped.")
