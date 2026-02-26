@@ -216,6 +216,7 @@ cd ~/MCADV
 source venv/bin/activate
 
 # Test with Ollama (adjust device path if needed)
+# Note: --channel-idx 1 = #adventure hashtag channel
 python3 adventure_bot.py \
   --port /dev/ttyUSB0 \
   --channel-idx 1 \
@@ -227,19 +228,22 @@ python3 adventure_bot.py \
 # "Ollama available at http://localhost:11434"
 # "Model 'llama3.2:1b' is ready"
 # "Bot started successfully"
-# "Listening on channel 1..."
+# "Listening on channel 1 (#adventure)..."
 
 # Press Ctrl+C to stop
 ```
 
+**Important:** The bot only responds on the **#adventure** MeshCore hashtag channel (channel index 1). All players must be on this channel to interact with the bot.
+
 ### Step 9: Test on LoRa Network
 
-From another device with LoRa MeshCore radio:
+From another device with LoRa MeshCore radio configured to the **#adventure** channel:
 
-1. Send `!adv` on the configured channel
-2. Bot should respond with a story scene and choices
-3. Reply with `1`, `2`, or `3` to make a choice
-4. Continue the adventure!
+1. **Ensure you're on the #adventure channel** (channel index 1)
+2. Send `!adv` to start an adventure
+3. Bot should respond with a story scene and choices
+4. Reply with `1`, `2`, or `3` to make a choice
+5. Continue the adventure!
 
 ### Step 10: Development Workflow
 
@@ -294,6 +298,7 @@ User=YOUR_USERNAME
 WorkingDirectory=/home/YOUR_USERNAME/MCADV
 Environment="OLLAMA_URL=http://localhost:11434"
 Environment="OLLAMA_MODEL=llama3.2:1b"
+# --channel-idx 1 = #adventure hashtag channel (REQUIRED)
 ExecStart=/home/YOUR_USERNAME/MCADV/venv/bin/python3 /home/YOUR_USERNAME/MCADV/adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1
 Restart=on-failure
 RestartSec=10
@@ -954,6 +959,8 @@ ssh pi@pi5.local    # Reconnect
 
 ### Step 5: Test MCADV (Basic Test)
 
+**Important:** The bot is configured to listen **only on channel index 1**, which corresponds to the **#adventure** MeshCore hashtag channel. All your MeshCore devices must be configured to use this channel.
+
 **On Pi 5 (with Ollama):**
 
 ```bash
@@ -961,6 +968,7 @@ cd ~/MCADV
 source venv/bin/activate
 
 # Test with Ollama (adjust device path if needed)
+# --channel-idx 1 = #adventure hashtag channel (REQUIRED)
 python3 adventure_bot.py \
   --port /dev/ttyUSB0 \
   --channel-idx 1 \
@@ -972,7 +980,7 @@ python3 adventure_bot.py \
 # "Ollama available at http://localhost:11434"
 # "Model 'llama3.2:1b' is ready"
 # "Bot started successfully"
-# "Listening on channel 1..."
+# "Listening on channel 1 (#adventure)..."
 ```
 
 **On Pi Zero 2 (connecting to Pi 5's Ollama):**
@@ -982,6 +990,7 @@ cd ~/MCADV
 source venv/bin/activate
 
 # Test connecting to Pi 5's Ollama (replace with Pi 5's IP)
+# --channel-idx 1 = #adventure hashtag channel (REQUIRED)
 python3 adventure_bot.py \
   --port /dev/ttyUSB0 \
   --channel-idx 1 \
@@ -994,12 +1003,14 @@ python3 adventure_bot.py \
 # "Ollama available at http://192.168.1.50:11434"
 # "Model 'llama3.2:1b' is ready"
 # "Bot started successfully"
+# "Listening on channel 1 (#adventure)..."
 ```
 
 **Test offline mode (without Ollama):**
 
 ```bash
 # Run without LLM (uses built-in story trees)
+# --channel-idx 1 = #adventure hashtag channel (REQUIRED)
 python3 adventure_bot.py \
   --port /dev/ttyUSB0 \
   --channel-idx 1 \
@@ -1009,6 +1020,11 @@ python3 adventure_bot.py \
 ```
 
 Press `Ctrl+C` to stop the bot.
+
+**Channel Configuration Note:** 
+- The bot **must** use `--channel-idx 1` to listen on the #adventure channel
+- All players must have their MeshCore devices set to the #adventure channel
+- The bot will ignore messages from all other channels
 
 ### Step 6: Configure as System Service (Auto-start on boot)
 
@@ -1033,6 +1049,7 @@ User=pi
 WorkingDirectory=/home/pi/MCADV
 Environment="OLLAMA_URL=http://localhost:11434"
 Environment="OLLAMA_MODEL=llama3.2:1b"
+# Bot listens ONLY on channel 1 = #adventure hashtag channel
 ExecStart=/home/pi/MCADV/venv/bin/python3 /home/pi/MCADV/adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1
 Restart=on-failure
 RestartSec=10
@@ -1060,6 +1077,7 @@ User=pi
 WorkingDirectory=/home/pi/MCADV
 Environment="OLLAMA_URL=http://192.168.1.50:11434"
 Environment="OLLAMA_MODEL=llama3.2:1b"
+# Bot listens ONLY on channel 1 = #adventure hashtag channel
 ExecStart=/home/pi/MCADV/venv/bin/python3 /home/pi/MCADV/adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1
 Restart=on-failure
 RestartSec=10
@@ -1143,30 +1161,36 @@ sudo journalctl -u adventure_bot -f
 
 ### Step 3: Test on LoRa Network
 
-From another device with LoRa MeshCore radio connected to the same channel:
+**IMPORTANT:** Your MeshCore radio must be configured to the **#adventure** channel (channel index 1) to communicate with the bot.
 
-1. **Start an adventure:**
+From another device with LoRa MeshCore radio on the **#adventure** channel:
+
+1. **Verify you're on the correct channel:**
+   - Configure your MeshCore device to channel index 1 (#adventure)
+   - All communication with the bot must be on this channel
+
+2. **Start an adventure:**
    ```
    Send message: !adv
    ```
 
-2. **Bot should respond with:**
+3. **Bot should respond with:**
    ```
    🎲 Starting FANTASY adventure...
    [Story scene with 3 choices]
    Reply 1, 2, or 3 to choose
    ```
 
-3. **Make a choice:**
+4. **Make a choice:**
    ```
    Send: 1
    ```
 
-4. **Continue the adventure:**
+5. **Continue the adventure:**
    - Bot generates next scene based on your choice
    - Keep playing until you reach "THE END"
 
-5. **Test other commands:**
+6. **Test other commands:**
    ```
    !adv help       - Show help
    !adv status     - Show current adventure status
@@ -1175,6 +1199,11 @@ From another device with LoRa MeshCore radio connected to the same channel:
    !adv scifi      - Start sci-fi theme
    !adv horror     - Start horror theme
    ```
+
+**Troubleshooting:** If the bot doesn't respond, verify:
+- Bot is running and shows "Listening on channel 1 (#adventure)..."
+- Your MeshCore device is set to channel index 1 (#adventure)
+- Radio connection is working (check other MeshCore messages)
 
 ### Step 4: Performance Check
 
@@ -1471,23 +1500,39 @@ sudo nano /etc/fstab     # Update UUID line
 
 ### Issue: Bot not responding on LoRa network
 
+**Most common cause:** Wrong channel configuration!
+
 **Solutions:**
 
 ```bash
-# Check bot is running
+# 1. Check bot is running and listening on correct channel
 sudo systemctl status adventure_bot
 
-# Check logs for errors
+# 2. Check logs - should show "Listening on channel 1 (#adventure)..."
 tail -50 ~/MCADV/logs/adventure_bot.log
+# Or: sudo journalctl -u adventure_bot -n 50
 
-# Verify radio is connected
+# 3. Verify your MeshCore radio is on the #adventure channel (channel index 1)
+# The bot ONLY responds on channel 1 (#adventure)
+# Check your MeshCore device configuration!
+
+# 4. Verify radio is connected
 ls -l /dev/ttyUSB0
 
-# Test radio manually (if you have python-meshtastic)
-meshtastic --info
+# 5. Test radio connectivity with other MeshCore devices
+# Can you send/receive regular messages on the #adventure channel?
 
-# Verify channel configuration
-# Both radios must be on same channel!
+# 6. Restart bot
+sudo systemctl restart adventure_bot
+sudo journalctl -u adventure_bot -f  # Watch for "Listening on channel 1..."
+```
+
+**Channel Configuration Checklist:**
+- ✅ Bot command includes `--channel-idx 1`
+- ✅ Your MeshCore device is set to channel index 1
+- ✅ Channel is named "#adventure" or matches channel 1
+- ✅ Other devices on same channel can communicate
+- ❌ Bot will NOT respond on any other channel
 
 # Restart bot
 sudo systemctl restart adventure_bot
