@@ -46,6 +46,11 @@ except ImportError:
 # The MeshCore binary protocol frame fits up to ~230 bytes of text payload,
 # but keeping to 200 leaves comfortable headroom for node-name prefixes and
 # multi-hop path overhead.
+# 
+# Note: When messages are transmitted on a channel, MeshCore firmware prepends
+# the node_id in the format "node_id: content". For this bot with node_id="MCADV",
+# the overhead is 7 characters ("MCADV: "). The _send_reply() method automatically
+# accounts for this overhead when splitting long messages.
 # ---------------------------------------------------------------------------
 MAX_MSG_LEN = 200
 
@@ -384,17 +389,31 @@ class AdventureBot:
         """
         Send a reply via MeshCore, splitting into multiple messages if needed.
         
-        Messages longer than MAX_MSG_LEN are split across multiple LoRa transmissions
-        with markers (1/N, 2/N, etc.) to indicate the part number.
+        Messages longer than the effective payload size are split across multiple
+        LoRa transmissions with markers (1/N, 2/N, etc.) to indicate the part number.
+        
+        The effective payload size accounts for:
+        - MAX_MSG_LEN (200 chars) - the LoRa payload limit
+        - Node name prefix overhead (e.g., "MCADV: " = 7 chars)
+        - Part indicator suffix (e.g., " (99/99)" = 8 chars worst case)
         """
-        if len(text) <= MAX_MSG_LEN:
+        # Calculate overhead from the node_id prefix added by MeshCore firmware
+        # Format is "node_id: content", so overhead is len(node_id) + 2
+        node_name_overhead = len(self.mesh.node_id) + 2  # +2 for ": "
+        
+        # Available space for our content in a single message
+        effective_max_len = MAX_MSG_LEN - node_name_overhead
+        
+        # Check if message fits in a single transmission
+        if len(text) <= effective_max_len:
             self.mesh.send_message(text, "text", channel_idx=channel_idx)
             return
         
         # Split message into multiple parts
         # Reserve space for " (X/Y)" suffix where Y could be up to 2 digits
-        suffix_space = 7  # " (99/99)" worst case
-        chunk_size = MAX_MSG_LEN - suffix_space
+        # Worst case: " (99/99)" = 8 characters
+        suffix_space = 8
+        chunk_size = effective_max_len - suffix_space
         
         chunks = []
         remaining = text

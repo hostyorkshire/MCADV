@@ -104,12 +104,16 @@ class TestSendReply(unittest.TestCase):
             if self.bot.mesh.send_message.call_count > 1:
                 self.assertRegex(sent_msg, r" \(\d+/\d+\)$")
 
-    def test_exact_max_len_not_split(self):
-        """Messages exactly at MAX_MSG_LEN should not be split."""
-        text = "B" * MAX_MSG_LEN
+    def test_exact_effective_max_not_split(self):
+        """Messages at the effective max (accounting for node overhead) should not be split."""
+        # Calculate effective max accounting for node name overhead
+        node_overhead = len(self.bot.mesh.node_id) + 2
+        effective_max = MAX_MSG_LEN - node_overhead
+        
+        text = "B" * effective_max
         self.bot._send_reply(text, 1)
         self.bot.mesh.send_message.assert_called_once()
-        self.assertEqual(len(last_reply(self.bot)), MAX_MSG_LEN)
+        self.assertEqual(len(last_reply(self.bot)), effective_max)
 
     def test_correct_channel_idx_forwarded(self):
         self.bot._send_reply("hi", 3)
@@ -586,6 +590,190 @@ class TestSessionPersistence(unittest.TestCase):
                 self.assertEqual(s["theme"], "scifi")
             finally:
                 ab_module.SESSION_FILE = original_path
+
+
+# ---------------------------------------------------------------------------
+# Multi-message integration tests
+# ---------------------------------------------------------------------------
+
+
+class TestMultiMessageIntegration(unittest.TestCase):
+    """
+    Integration tests demonstrating complete multi-message flow.
+    These tests verify that long messages are properly split and sent
+    across multiple LoRa transmissions.
+    """
+    
+    def test_long_story_from_llm_splits_correctly(self):
+        """
+        Test that a long LLM response is properly split when sent.
+        """
+        bot = make_bot()
+        bot._call_ollama = MagicMock(return_value=None)
+        bot._call_openai = MagicMock(return_value=None)
+        bot._call_groq = MagicMock(return_value=None)
+        
+        # Create a long LLM response that exceeds MAX_MSG_LEN
+        long_story = (
+            "You find yourself in a vast underground cavern filled with glowing crystals. "
+            "The walls shimmer with an otherworldly light that seems to pulse in rhythm with your heartbeat. "
+            "Ancient symbols are carved into the rock face, telling stories of civilizations long forgotten. "
+            "Three passages lead deeper into the earth, each one beckoning with mysteries of its own.\n"
+            "1:Take the left passage 2:Take the center passage 3:Take the right passage"
+        )
+        
+        # Mock the LLM to return this long story
+        with patch.object(bot, "_call_ollama", return_value=long_story):
+            # Start an adventure which calls _generate_story and _send_reply
+            bot.handle_message(make_msg(sender="TestUser", content="!adv fantasy", channel_idx=1))
+        
+        # Verify multiple messages were sent
+        call_count = bot.mesh.send_message.call_count
+        if len(long_story) > MAX_MSG_LEN:
+            self.assertGreater(call_count, 1, "Long story should be split into multiple messages")
+        
+        # Verify each message respects MAX_MSG_LEN
+        for call in bot.mesh.send_message.call_args_list:
+            msg = call[0][0]
+            self.assertLessEqual(len(msg), MAX_MSG_LEN, 
+                f"Message '{msg[:50]}...' exceeds MAX_MSG_LEN")
+        
+        # Verify messages have part indicators if split
+        if call_count > 1:
+            for i, call in enumerate(bot.mesh.send_message.call_args_list, 1):
+                msg = call[0][0]
+                self.assertRegex(msg, r"\(\d+/\d+\)$", 
+                    f"Part {i} should have part indicator like (1/2)")
+    
+    def test_reconstructed_message_preserves_content(self):
+        """
+        Test that split messages can be reconstructed to recover original content.
+        """
+        bot = make_bot()
+        
+        # Create a specific long message
+        original_message = "X" * 150 + "Y" * 150 + "Z" * 150  # 450 chars
+        
+        bot._send_reply(original_message, channel_idx=1)
+        
+        # Collect all parts
+        parts = []
+        for call in bot.mesh.send_message.call_args_list:
+            msg = call[0][0]
+            # Remove the part indicator suffix " (X/Y)"
+            import re
+            match = re.search(r"^(.+?) \(\d+/\d+\)$", msg)
+            if match:
+                parts.append(match.group(1))
+            else:
+                parts.append(msg)
+        
+        # Reconstruct the message
+        reconstructed = "".join(parts)
+        
+        # Verify content is preserved
+        self.assertEqual(reconstructed, original_message, 
+            "Reconstructed message should match original")
+    
+    def test_message_exactly_at_effective_limit_not_split(self):
+        """
+        Verify that messages at the effective limit (accounting for node name overhead) are not split.
+        """
+        bot = make_bot()
+        
+        # Calculate effective max accounting for node name overhead
+        node_overhead = len(bot.mesh.node_id) + 2
+        effective_max = MAX_MSG_LEN - node_overhead
+        
+        message = "A" * effective_max
+        bot._send_reply(message, channel_idx=1)
+        
+        # Should be sent as a single message
+        self.assertEqual(bot.mesh.send_message.call_count, 1)
+        sent = bot.mesh.send_message.call_args[0][0]
+        self.assertEqual(sent, message)
+        self.assertNotRegex(sent, r"\(\d+/\d+\)$", 
+            "Message at exactly effective_max should not have part indicator")
+    
+    def test_message_one_char_over_limit_splits(self):
+        """
+        Verify that messages just over MAX_MSG_LEN are properly split.
+        """
+        bot = make_bot()
+        
+        message = "B" * (MAX_MSG_LEN + 1)
+        bot._send_reply(message, channel_idx=1)
+        
+        # Should be split into 2 parts
+        self.assertEqual(bot.mesh.send_message.call_count, 2)
+        
+        # Both parts should have indicators
+        for call in bot.mesh.send_message.call_args_list:
+            msg = call[0][0]
+            self.assertRegex(msg, r"\(\d+/2\)$")
+    
+    def test_node_name_overhead_accounted_for(self):
+        """
+        Test that the node name prefix overhead is properly accounted for.
+        
+        When messages are sent over LoRa, MeshCore firmware prepends the
+        node_id in the format "node_id: content". This overhead must be
+        subtracted from the available payload space.
+        """
+        bot = make_bot()
+        
+        # Node name is "MCADV" (5 chars) + ": " (2 chars) = 7 chars overhead
+        node_overhead = len(bot.mesh.node_id) + 2
+        effective_max = MAX_MSG_LEN - node_overhead
+        
+        # Test message that fits within effective max (should not split)
+        message_fits = "X" * effective_max
+        bot._send_reply(message_fits, channel_idx=1)
+        self.assertEqual(bot.mesh.send_message.call_count, 1,
+            "Message at effective_max should not be split")
+        
+        # Reset mock
+        bot.mesh.send_message.reset_mock()
+        
+        # Test message one char over effective max (should split)
+        message_over = "Y" * (effective_max + 1)
+        bot._send_reply(message_over, channel_idx=1)
+        self.assertGreater(bot.mesh.send_message.call_count, 1,
+            "Message over effective_max should be split")
+        
+        # Verify that when transmitted, each part won't exceed LoRa payload
+        for call in bot.mesh.send_message.call_args_list:
+            content = call[0][0]
+            # Total transmission will be "MCADV: <content>"
+            total_transmission = f"{bot.mesh.node_id}: {content}"
+            self.assertLessEqual(len(total_transmission), MAX_MSG_LEN,
+                f"Total transmission '{total_transmission[:50]}...' exceeds LoRa payload limit")
+    
+    def test_very_long_message_split_correctly_with_overhead(self):
+        """
+        Test that very long messages are split into the correct number of parts
+        accounting for node name overhead.
+        """
+        bot = make_bot()
+        
+        # Create a message that should split into exactly 3 parts
+        node_overhead = len(bot.mesh.node_id) + 2
+        suffix_space = 8  # " (99/99)"
+        chunk_size = MAX_MSG_LEN - node_overhead - suffix_space
+        
+        # 3 full chunks minus a few chars to avoid boundary issues
+        message = "Z" * (chunk_size * 3 - 10)
+        bot._send_reply(message, channel_idx=1)
+        
+        # Should be split into 3 parts
+        self.assertEqual(bot.mesh.send_message.call_count, 3)
+        
+        # Verify each part respects the LoRa payload limit
+        for call in bot.mesh.send_message.call_args_list:
+            content = call[0][0]
+            total_transmission = f"{bot.mesh.node_id}: {content}"
+            self.assertLessEqual(len(total_transmission), MAX_MSG_LEN,
+                "Each part must fit within LoRa payload limit")
 
 
 if __name__ == "__main__":
