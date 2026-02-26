@@ -133,6 +133,8 @@ The bot tries each backend in order and falls back to the next if unavailable.
 - **OpenAI** – reliable, small cost per adventure
 - **No LLM / offline** – three fully self-contained story trees (fantasy, sci-fi, horror)
 
+📖 **See [guides/OLLAMA_SETUP.md](guides/OLLAMA_SETUP.md) for a comprehensive guide on setting up Ollama (local and LAN).**
+
 ---
 
 ### Option 2 – Story themes
