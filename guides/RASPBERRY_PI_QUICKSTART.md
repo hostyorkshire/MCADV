@@ -1,26 +1,46 @@
 # Raspberry Pi Quick Start Guide for MCADV
 
-This comprehensive guide will walk you through setting up both Raspberry Pi 5 and Raspberry Pi Zero 2 from scratch, including downloading the OS, configuring it, and running MCADV with Ollama locally using the recommended models.
+This comprehensive guide will walk you through setting up Raspberry Pi 5, Pi Zero 2, and Ubuntu Desktop from scratch, including downloading the OS, configuring it, and running MCADV with Ollama locally using the recommended models.
 
 ---
 
 ## Table of Contents
 
 1. [Hardware Requirements](#hardware-requirements)
-2. [Download Raspberry Pi OS](#download-raspberry-pi-os)
-3. [Flash OS to SD Card](#flash-os-to-sd-card)
-4. [Initial Pi Configuration](#initial-pi-configuration)
-5. [Pi 5 Setup (Bot Server with Ollama)](#pi-5-setup-bot-server-with-ollama)
-6. [Pi Zero 2 Setup (Lightweight Bot)](#pi-zero-2-setup-lightweight-bot)
-7. [Installing Ollama](#installing-ollama)
-8. [Downloading Recommended Models](#downloading-recommended-models)
-9. [Installing MCADV](#installing-mcadv)
-10. [Testing Your Setup](#testing-your-setup)
-11. [Troubleshooting](#troubleshooting)
+2. [Ubuntu Desktop Setup (Development)](#ubuntu-desktop-setup-development)
+3. [Download Raspberry Pi OS](#download-raspberry-pi-os)
+4. [Flash OS to SD Card](#flash-os-to-sd-card)
+5. [Initial Pi Configuration](#initial-pi-configuration)
+6. [Pi 5 Setup (Bot Server with Ollama)](#pi-5-setup-bot-server-with-ollama)
+7. [Pi Zero 2 Setup (Lightweight Bot)](#pi-zero-2-setup-lightweight-bot)
+8. [Installing Ollama](#installing-ollama)
+9. [Downloading Recommended Models](#downloading-recommended-models)
+10. [Installing MCADV](#installing-mcadv)
+11. [Testing Your Setup](#testing-your-setup)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
 ## Hardware Requirements
+
+### For Ubuntu Desktop (Development/Testing) ⭐ RECOMMENDED FOR DEVELOPMENT
+
+**Required:**
+- Desktop or laptop running Ubuntu 20.04 LTS or newer (64-bit)
+- 8GB RAM minimum (16GB+ recommended)
+- 20GB free disk space (50GB+ recommended for multiple models)
+- USB port for LoRa radio
+- Internet connection
+
+**Why Ubuntu Desktop for Development?**
+- ✅ **Zero cost** - Use your existing computer
+- ✅ **Fast iteration** - More powerful than Pi
+- ✅ **Easy debugging** - Full IDE and debugging tools available
+- ✅ **Same OS family** - Ubuntu/Debian-based like Raspberry Pi OS
+- ✅ **Test before deploying** - Verify everything works before buying Pi hardware
+- ✅ **Portable code** - Same Python code runs on Pi later
+
+**Note:** Ubuntu Desktop acts as a Pi 5 simulator for development. Once your code works on Ubuntu, it will work on Pi 5 with minimal or no changes.
 
 ### For Raspberry Pi 5 (Recommended Bot Server)
 
@@ -53,7 +73,7 @@ This comprehensive guide will walk you through setting up both Raspberry Pi 5 an
 - Case
 - USB Ethernet adapter (for more stable networking)
 
-### For Both
+### For Both Pi Models
 
 - Monitor/TV with HDMI input (for initial setup)
 - Computer for flashing SD card
@@ -61,7 +81,257 @@ This comprehensive guide will walk you through setting up both Raspberry Pi 5 an
 
 ---
 
+## Ubuntu Desktop Setup (Development)
+
+**⭐ Start here if you want to develop/test before deploying to Raspberry Pi hardware.**
+
+This section covers setting up Ubuntu Desktop as a development environment. Your Ubuntu machine will act as a Pi 5 simulator, running both MCADV and Ollama locally. This is the fastest way to get started and test everything before investing in Pi hardware.
+
+### Prerequisites
+
+- Ubuntu 20.04 LTS or newer (64-bit)
+- 8GB+ RAM (16GB recommended)
+- LoRa MeshCore radio connected via USB
+
+### Step 1: Update System
+
+```bash
+# Update package lists
+sudo apt update
+
+# Upgrade packages
+sudo apt upgrade -y
+
+# Install essential tools
+sudo apt install -y git curl wget build-essential
+```
+
+### Step 2: Install Python and Dependencies
+
+```bash
+# Install Python 3 and pip
+sudo apt install -y python3 python3-pip python3-venv python3-serial
+
+# Verify versions
+python3 --version    # Should be 3.8 or newer
+pip3 --version
+
+# Install useful development tools
+sudo apt install -y htop net-tools
+```
+
+### Step 3: Install Ollama
+
+```bash
+# Download and install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Verify installation
+ollama --version
+
+# Check service status
+systemctl status ollama
+
+# Ollama should be running on http://localhost:11434
+```
+
+### Step 4: Download Recommended Models
+
+```bash
+# Start with the recommended model for CYOA
+ollama pull llama3.2:1b    # 1.3GB, fast, good quality
+
+# Optional: Pull additional models for comparison
+# ollama pull llama3.2:3b    # 3.2GB, better quality, slower
+# ollama pull llama3.1:8b    # 4.9GB, best quality (if you have powerful hardware)
+```
+
+### Step 5: Test Ollama
+
+```bash
+# Test the model
+ollama run llama3.2:1b "Write a short fantasy story in 2 sentences."
+
+# Press Ctrl+D to exit
+
+# Test API endpoint
+curl http://localhost:11434/api/version
+# Should return: {"version":"0.x.x"}
+```
+
+### Step 6: Clone and Install MCADV
+
+```bash
+# Navigate to your projects directory
+cd ~
+
+# Clone MCADV repository
+git clone https://github.com/hostyorkshire/MCADV.git
+cd MCADV
+
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Install dependencies
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# Verify installation
+pip list
+```
+
+### Step 7: Connect LoRa Radio
+
+**Physical connection:**
+
+1. Connect your LoRa MeshCore radio to a USB port
+2. Wait for the device to be recognized
+
+**Identify the device:**
+
+```bash
+# List USB serial devices
+ls -l /dev/ttyUSB* /dev/ttyACM*
+
+# Typically: /dev/ttyUSB0 or /dev/ttyACM0
+# Note down the device path
+
+# Check permissions
+ls -l /dev/ttyUSB0
+
+# Add your user to dialout group (if needed)
+sudo usermod -a -G dialout $USER
+
+# Log out and log back in for group change to take effect
+# Or use: newgrp dialout
+```
+
+### Step 8: Test MCADV
+
+```bash
+cd ~/MCADV
+source venv/bin/activate
+
+# Test with Ollama (adjust device path if needed)
+python3 adventure_bot.py \
+  --port /dev/ttyUSB0 \
+  --channel-idx 1 \
+  --model llama3.2:1b \
+  --debug
+
+# You should see:
+# "Initializing bot..."
+# "Ollama available at http://localhost:11434"
+# "Model 'llama3.2:1b' is ready"
+# "Bot started successfully"
+# "Listening on channel 1..."
+
+# Press Ctrl+C to stop
+```
+
+### Step 9: Test on LoRa Network
+
+From another device with LoRa MeshCore radio:
+
+1. Send `!adv` on the configured channel
+2. Bot should respond with a story scene and choices
+3. Reply with `1`, `2`, or `3` to make a choice
+4. Continue the adventure!
+
+### Step 10: Development Workflow
+
+**Your Ubuntu development setup is complete! Here's your workflow:**
+
+1. **Develop on Ubuntu:**
+   ```bash
+   cd ~/MCADV
+   source venv/bin/activate
+   # Edit code, test changes
+   python3 adventure_bot.py --port /dev/ttyUSB0 --debug
+   ```
+
+2. **Test different models:**
+   ```bash
+   ollama pull llama3.2:3b
+   python3 adventure_bot.py --port /dev/ttyUSB0 --model llama3.2:3b
+   ```
+
+3. **Monitor performance:**
+   ```bash
+   htop                              # System resources
+   journalctl -u ollama -f          # Ollama logs
+   tail -f logs/adventure_bot.log   # Bot logs
+   ```
+
+4. **When ready, deploy to Pi:**
+   - Same code works on Pi with no changes
+   - Same Ollama commands
+   - Same model files
+
+### Optional: Create Systemd Service on Ubuntu
+
+If you want the bot to auto-start on Ubuntu:
+
+```bash
+# Create service file
+sudo nano /etc/systemd/system/adventure_bot.service
+```
+
+Add this content (adjust paths for your username):
+
+```ini
+[Unit]
+Description=MCADV Adventure Bot
+After=network.target ollama.service
+Wants=ollama.service
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/home/YOUR_USERNAME/MCADV
+Environment="OLLAMA_URL=http://localhost:11434"
+Environment="OLLAMA_MODEL=llama3.2:1b"
+ExecStart=/home/YOUR_USERNAME/MCADV/venv/bin/python3 /home/YOUR_USERNAME/MCADV/adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable adventure_bot
+sudo systemctl start adventure_bot
+sudo systemctl status adventure_bot
+```
+
+### Ubuntu Desktop: Summary
+
+✅ **You now have a full development environment on Ubuntu!**
+
+**What you can do:**
+- Develop and test code faster than on Pi
+- Test with multiple models easily
+- Debug with full IDE support (VSCode, PyCharm, etc.)
+- Simulate Pi 5 behavior exactly
+- Deploy to Pi when ready with minimal changes
+
+**Next steps:**
+- Experiment with different models and settings
+- Test your adventures thoroughly
+- When satisfied, deploy to actual Pi hardware (skip to [Download Raspberry Pi OS](#download-raspberry-pi-os))
+
+---
+
 ## Download Raspberry Pi OS
+
+**Note:** If you're using Ubuntu Desktop for development only, you can skip this section and the Pi-specific sections below.
 
 We'll use **Raspberry Pi OS Lite (64-bit)** - a minimal installation without desktop environment, perfect for headless operation.
 
@@ -938,14 +1208,88 @@ time curl http://localhost:11434/api/generate -d '{
   "stream": false
 }'
 
-# On Pi 5 with llama3.2:1b, should take 2-5 seconds
+# On Pi 5 with llama3.2:1b: 2-5 seconds
+# On Ubuntu Desktop (typical PC): 0.5-2 seconds (faster due to more powerful CPU)
 ```
 
 ---
 
 ## Troubleshooting
 
-### Issue: "ollama: command not found"
+### Ubuntu Desktop Specific Issues
+
+#### Issue: Ollama not installed or service not running
+
+**Solution:**
+
+```bash
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Check if service is running
+systemctl status ollama
+
+# If not running, start it:
+sudo systemctl start ollama
+sudo systemctl enable ollama
+```
+
+#### Issue: LoRa radio not detected on Ubuntu
+
+**Solution:**
+
+```bash
+# Check if device is detected
+lsusb
+dmesg | tail -20
+
+# Check for USB serial devices
+ls -l /dev/ttyUSB* /dev/ttyACM*
+
+# If driver issue, install USB serial drivers:
+sudo apt install -y linux-headers-$(uname -r)
+
+# For CH340/CH341 USB serial:
+sudo modprobe ch341
+
+# Check permissions
+sudo usermod -a -G dialout $USER
+# Log out and back in
+```
+
+#### Issue: Python virtual environment issues on Ubuntu
+
+**Solution:**
+
+```bash
+# Ensure venv package is installed
+sudo apt install -y python3-venv
+
+# Remove and recreate venv
+cd ~/MCADV
+rm -rf venv
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+#### Issue: Ubuntu goes to sleep and bot stops
+
+**Solution:**
+
+```bash
+# Disable suspend/sleep
+gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing'
+gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type 'nothing'
+
+# Or use systemd inhibit:
+systemd-inhibit --what=sleep --who="MCADV Bot" --why="Running adventure bot" sleep infinity &
+```
+
+### Raspberry Pi Specific Issues
+
+#### Issue: "ollama: command not found"
 
 **Solution:**
 
@@ -1187,41 +1531,58 @@ pip install --break-system-packages -r requirements.txt
 
 ### ✅ You're all set! Here's what you can do now:
 
-1. **Explore different themes:**
+1. **If using Ubuntu for development:**
+   - Iterate quickly with full debugging tools
+   - Test multiple models easily (your PC is more powerful than Pi)
+   - Use your favorite IDE (VSCode, PyCharm, etc.)
+   - When satisfied, deploy to Pi with the same code
+   ```bash
+   cd ~/MCADV
+   source venv/bin/activate
+   python3 adventure_bot.py --port /dev/ttyUSB0 --debug
+   ```
+
+2. **Explore different themes:**
    - Send `!adv fantasy` for fantasy adventures
    - Send `!adv scifi` for sci-fi adventures
    - Send `!adv horror` for horror adventures
 
-2. **Try different models:**
+3. **Try different models:**
    ```bash
-   # On Pi 5, pull additional models:
-   ollama pull llama3.2:3b    # Better quality (if 8GB RAM)
+   # On Ubuntu/Pi 5, pull additional models:
+   ollama pull llama3.2:3b    # Better quality (if 8GB+ RAM)
+   ollama pull llama3.1:8b    # Best quality (if powerful hardware)
    ollama pull phi3:mini      # Alternative engine
    
-   # Update service to use new model:
+   # Test a model:
+   python3 adventure_bot.py --port /dev/ttyUSB0 --model llama3.2:3b
+   
+   # Update service to use new model (if using systemd):
    sudo systemctl edit adventure_bot
    # Change: Environment="OLLAMA_MODEL=llama3.2:3b"
    sudo systemctl restart adventure_bot
    ```
 
-3. **Monitor performance:**
+4. **Monitor performance:**
    ```bash
    # Watch system resources
    htop
    
    # Watch logs
-   sudo journalctl -u adventure_bot -f
+   tail -f ~/MCADV/logs/adventure_bot.log
+   # Or: sudo journalctl -u adventure_bot -f (if using systemd)
    
    # Check model loading times
    sudo journalctl -u ollama -f
    ```
 
-4. **Scale up:**
+5. **Scale up (when ready for production):**
+   - Deploy from Ubuntu to Pi 5 (same code!)
    - Add more Pi Zero 2 devices as bot nodes
-   - Share one Pi 5 Ollama server across multiple bots
+   - Share one Pi 5/Ubuntu Ollama server across multiple bots
    - See [HARDWARE.md](../HARDWARE.md) for distributed architecture
 
-5. **Optimize:**
+6. **Optimize:**
    - Adjust model parameters for your preferences
    - See [PERFORMANCE.md](../PERFORMANCE.md) for tuning tips
    - See [guides/OLLAMA_SETUP.md](OLLAMA_SETUP.md) for advanced Ollama configuration
@@ -1274,8 +1635,19 @@ If you encounter issues not covered in this guide:
 
 ## Summary
 
-Congratulations! You've successfully:
+Congratulations! Depending on your setup, you've successfully:
 
+### Ubuntu Desktop (Development)
+✅ Installed Ubuntu with all dependencies
+✅ Installed Ollama and downloaded recommended models
+✅ Installed MCADV adventure bot
+✅ Connected LoRa radio via USB serial
+✅ Tested your setup on LoRa network
+✅ Created a fast development environment
+
+**Your Ubuntu development setup is ready! Test and iterate quickly before deploying to Pi.**
+
+### Raspberry Pi (Production)
 ✅ Downloaded and flashed Raspberry Pi OS Lite (64-bit)
 ✅ Configured SSH, WiFi, and system settings
 ✅ Set up USB SSD for model storage (Pi 5)
@@ -1284,7 +1656,15 @@ Congratulations! You've successfully:
 ✅ Configured auto-start on boot
 ✅ Tested your setup on LoRa network
 
-**Your setup is now ready for interactive AI-powered adventures over LoRa mesh networks!**
+**Your Pi setup is now ready for interactive AI-powered adventures over LoRa mesh networks!**
+
+### Development to Production Path
+
+1. **Develop on Ubuntu** - Fast iteration and testing
+2. **Test thoroughly** - Verify all features work
+3. **Deploy to Pi 5** - Same code, same models
+4. **Scale with Pi Zero 2** - Add lightweight nodes
+5. **Enjoy!** - Reliable field deployment
 
 ---
 
