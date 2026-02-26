@@ -338,6 +338,13 @@ VALID_THEMES: List[str] = list(FALLBACK_STORIES.keys())
 # ---------------------------------------------------------------------------
 
 
+class _TerminalMeshStub:
+    """Stub mesh object for terminal mode"""
+    def __init__(self):
+        self.node_id = "MCADV"
+        self.send_message = lambda *args, **kwargs: None
+
+
 class AdventureBot:
     """
     AI-powered Choose Your Own Adventure bot for MeshCore LoRa.
@@ -393,8 +400,12 @@ class AdventureBot:
             # Set channel filtering if channel name is provided
             if self.allowed_channel is not None:
                 self.mesh.set_channel_filter(self.allowed_channel)
+        elif terminal:
+            # Terminal mode needs a stub mesh object for send_message mocking
+            self.mesh = _TerminalMeshStub()
         else:
-            self.mesh = None  # No direct mesh connection in terminal or distributed mode
+            # Distributed mode has no mesh connection
+            self.mesh = None
 
     # ------------------------------------------------------------------
     # Helpers
@@ -416,6 +427,11 @@ class AdventureBot:
         - Node name prefix overhead (e.g., "MCADV: " = 7 chars)
         - Part indicator suffix (dynamically calculated based on number of parts)
         """
+        # In terminal mode, mesh is None, so we need to handle that
+        if self.mesh is None:
+            # Terminal mode - no mesh, so just print directly (handled by terminal mode)
+            return
+            
         # Calculate overhead from the node_id prefix added by MeshCore firmware
         # Format is "node_id: content", so overhead is len(node_id) + 2
         node_name_overhead = len(self.mesh.node_id) + 2  # +2 for ": "
