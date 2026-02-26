@@ -32,6 +32,11 @@ Configuration files for development tools
 - `.flake8` - Flake8 linting configuration
 - `.pylintrc` - Pylint configuration
 
+### `/guides`
+Comprehensive setup guides and documentation
+- `README.md` - Index of all setup guides
+- `OLLAMA_SETUP.md` - Complete Ollama setup guide (local and LAN)
+
 ## Quick Start
 
 ```bash
