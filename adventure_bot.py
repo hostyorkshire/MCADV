@@ -862,6 +862,90 @@ class AdventureBot:
             print("MCADV stopped.")
             self.logger.info("MCADV stopped.")
 
+    def run_terminal(self) -> None:
+        """
+        Run the bot in terminal mode for testing/playing without LoRa hardware.
+        
+        This mode allows you to interact with the adventure bot directly from the
+        command line. All commands work the same as on the radio network:
+        - !adv [theme] - Start a new adventure
+        - 1/2/3 - Make choices
+        - !quit - End your adventure
+        - !help - Show help
+        - !status - Check your adventure status
+        """
+        log_startup_info(self.logger, "MCADV Adventure Bot (Terminal Mode)", "1.0.0")
+        
+        print("\n" + "=" * 70)
+        print("  MCADV - Choose Your Own Adventure (Terminal Mode)")
+        print("=" * 70)
+        print("\nWelcome! You can test and play adventures from the terminal.")
+        print("\nAvailable commands:")
+        print("  !adv [theme]  - Start a new adventure (themes: fantasy, scifi, horror)")
+        print("  !start [theme]- Alias for !adv")
+        print("  1 / 2 / 3     - Make a choice")
+        print("  !status       - Show your current adventure state")
+        print("  !quit         - End your adventure")
+        print("  !help         - Show help")
+        print("  exit          - Exit terminal mode")
+        print("\nType '!adv' to begin your adventure!")
+        print("=" * 70 + "\n")
+        
+        self._running = True
+        
+        # Create a fake message for terminal mode - sender is "Terminal"
+        terminal_channel = 0
+        
+        # Store terminal replies to display
+        terminal_replies = []
+        
+        def terminal_send_message(text: str, msg_type: str = "text", channel_idx: int = 0):
+            """Capture outgoing messages and display them in terminal"""
+            terminal_replies.append(text)
+        
+        # Replace mesh.send_message with our terminal handler
+        original_send = self.mesh.send_message
+        self.mesh.send_message = terminal_send_message
+        
+        try:
+            while self._running:
+                # Display any pending replies from the bot
+                while terminal_replies:
+                    reply = terminal_replies.pop(0)
+                    print(f"\n📖 {reply}\n")
+                
+                # Get user input
+                try:
+                    user_input = input("You> ").strip()
+                except EOFError:
+                    # Handle Ctrl+D
+                    break
+                
+                if not user_input:
+                    continue
+                
+                # Check for exit command
+                if user_input.lower() in ("exit", "quit program", "q"):
+                    break
+                
+                # Create a fake MeshCoreMessage from terminal input
+                msg = MeshCoreMessage(
+                    sender="Terminal",
+                    content=user_input,
+                    channel_idx=terminal_channel,
+                )
+                
+                # Process the message through the normal handler
+                self.handle_message(msg)
+                
+        except KeyboardInterrupt:
+            print("\n\nExiting terminal mode...")
+        finally:
+            self._running = False
+            self._save_sessions(force=True)
+            self.mesh.send_message = original_send  # Restore original
+            print("\nGoodbye! Thanks for playing MCADV.\n")
+
 
 # ---------------------------------------------------------------------------
 # CLI entry point
@@ -882,6 +966,10 @@ LLM backends (tried in order until one succeeds):
 Story themes:  fantasy (default)  scifi  horror
 
 Examples:
+  # Terminal mode (no radio hardware needed):
+  python adventure_bot.py --terminal
+  
+  # Radio mode (requires LoRa hardware):
   python adventure_bot.py -p /dev/ttyUSB0 --channel-idx 1
   python adventure_bot.py -p /dev/ttyUSB0 --ollama-url http://192.168.1.50:11434
   python adventure_bot.py -p /dev/ttyUSB0 --groq-key gsk_...
@@ -892,6 +980,12 @@ Examples:
     parser.add_argument("-b", "--baud", type=int, default=115200, help="Baud rate (default: 115200)")
     parser.add_argument("-d", "--debug", action="store_true", help="Enable debug output")
     parser.add_argument("-a", "--announce", action="store_true", help="Send periodic announcements every 3 hours")
+    parser.add_argument(
+        "-t",
+        "--terminal",
+        action="store_true",
+        help="Run in terminal mode (no radio hardware needed, for testing/playing)",
+    )
     parser.add_argument(
         "-c",
         "--channel-idx",
@@ -931,7 +1025,12 @@ Examples:
         openai_key=args.openai_key,
         groq_key=args.groq_key,
     )
-    bot.run()
+    
+    # Run in terminal mode or radio mode
+    if args.terminal:
+        bot.run_terminal()
+    else:
+        bot.run()
 
 
 if __name__ == "__main__":
