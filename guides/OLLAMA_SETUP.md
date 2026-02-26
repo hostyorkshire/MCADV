@@ -512,13 +512,14 @@ With 239 GB, focus on these factors instead:
 
 **Best Model for CYOA Bot with 239 GB Storage:**
 
-**For Raspberry Pi 4/5 (4-8GB RAM):**
+**For Raspberry Pi 4 or Pi 5 (4GB or 8GB RAM):**
 ```bash
 ollama pull llama3.2:1b
 # Storage used: 1.3 GB
 # Remaining: ~237 GB
-# Speed: Fast (2-3s per story)
+# Speed: Fast (2-3s per scene generation)
 # Quality: Good - perfect for CYOA
+# Note: Works on both Pi 4 4GB/8GB and Pi 5 4GB/8GB
 ```
 
 **For more powerful hardware (Jetson/PC with 8GB+ RAM):**
@@ -526,8 +527,9 @@ ollama pull llama3.2:1b
 ollama pull llama3.2:3b
 # Storage used: 3.2 GB
 # Remaining: ~236 GB
-# Speed: Medium (4-6s per story)
+# Speed: Medium (4-6s per scene generation)
 # Quality: Very good - excellent CYOA narratives
+# Note: Best on Pi 5 8GB, Jetson, or desktop PC
 ```
 
 **Pro Tip:** Install both and switch based on your needs:

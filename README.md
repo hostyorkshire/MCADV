@@ -198,8 +198,8 @@ The bot tries Ollama first, then falls back to offline story trees if unavailabl
 
 | Hardware | Recommended Model | Size | Speed | Quality |
 |----------|------------------|------|-------|---------|
-| **Pi 4/5 (4GB)** | `llama3.2:1b` | 1.3 GB | Fast (2-3s) | Good |
-| **Pi 5 (8GB)** | `llama3.2:3b` | 3.2 GB | Medium (4-6s) | Very Good |
+| **Pi 4/5 (4GB or 8GB)** | `llama3.2:1b` | 1.3 GB | Fast (2-3s/scene) | Good |
+| **Pi 5 (8GB)** | `llama3.2:3b` | 3.2 GB | Medium (4-6s/scene) | Very Good |
 | **Jetson/PC (8GB+)** | `llama3.2:3b` or `llama3:8b` | 3.2-4.7 GB | Medium-Slow | Excellent |
 
 **Storage requirements:**
@@ -207,6 +207,8 @@ The bot tries Ollama first, then falls back to offline story trees if unavailabl
 - Medium model: ~3-4 GB per model
 - Large model: ~5-8 GB per model
 - **239 GB SSD:** Plenty of space for all models + OS + data
+
+*Note: Speed is per scene generation (each story prompt/continuation)*
 
 See [Storage Capacity Planning](guides/OLLAMA_SETUP.md#storage-capacity-planning) for detailed recommendations based on your available storage.
 
