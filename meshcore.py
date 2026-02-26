@@ -6,8 +6,11 @@ This module provides the core functionality for communicating via MeshCore mesh 
 
 import html
 import json
+import os
 import threading
 import time
+from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
 from logging_config import get_meshcore_logger
@@ -1002,8 +1005,6 @@ class MeshCore:
         This prevents the active channels list from growing indefinitely with
         stale channels that are no longer in use.
         """
-        import time
-
         current_time = time.time()
         expiry_seconds = self._channel_expiry_hours * 3600
 
@@ -1055,11 +1056,6 @@ class MeshCore:
         Args:
             filename: Path to save the channels data (default: <script_dir>/logs/channels.json)
         """
-        import json
-        import os
-        from datetime import datetime
-        from pathlib import Path
-
         # Use absolute path based on script location to avoid working directory issues
         if filename is None:
             filename = str(Path(__file__).parent / "logs" / "channels.json")
@@ -1069,7 +1065,7 @@ class MeshCore:
 
         try:
             os.makedirs(os.path.dirname(filename), exist_ok=True)
-            with open(filename, "w") as f:
+            with open(filename, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
             if self.debug:
                 self.log(f"Saved {len(channels)} active channel(s) to {filename}")
