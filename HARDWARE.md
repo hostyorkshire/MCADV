@@ -5,21 +5,13 @@
 ### Where Does the Bot Run?
 
 **The bot (adventure_bot.py) with all game logic runs on the compute device:**
-- ✅ **Pi 4/5** - Connects to LoRa radio via USB, runs bot + LLM
+- ✅ **Pi 4/5** - Runs bot + LLM
 - ✅ **Desktop PC (Ubuntu)** - For development/testing, acts like Pi 4/5
 - ❌ **Pi Zero 2W** - Only for radio gateway (future implementation)
 
-### Current vs. Future Architecture
+### Distributed Mode Architecture
 
-**Current Implementation (Standalone Mode):**
-```
-Player → LoRa → Pi 4/5 (adventure_bot.py via USB) → LLM → Response
-                   |
-              Bot runs here
-              Radio + Logic + LLM
-```
-
-**Future Implementation (Distributed Mode):**
+**Distributed Mode (Recommended for Pi Zero 2W):**
 ```
 Player → LoRa → Pi Zero 2W → Network → Pi 4/5 (adventure_bot.py) → LLM → Response
                    |                        |
@@ -28,7 +20,7 @@ Player → LoRa → Pi Zero 2W → Network → Pi 4/5 (adventure_bot.py) → LLM
 ```
 
 > **Note:** Distributed mode components (radio_gateway.py for Pi Zero 2W) are planned 
-> but not yet implemented. Currently, use standalone mode on Pi 4/5.
+> but not yet implemented.
 
 ---
 
@@ -38,7 +30,7 @@ The **Raspberry Pi Zero 2W** (1GHz quad-core, 512MB RAM) is excellent for handli
 
 ---
 
-## Recommended Distributed Architecture (Future)
+## Recommended Distributed Architecture
 
 ```
 ┌──────────────────┐         Local Network (WiFi/Ethernet)         ┌─────────────────┐
@@ -82,16 +74,16 @@ The **Raspberry Pi Zero 2W** (1GHz quad-core, 512MB RAM) is excellent for handli
 
 **Best For:** Budget-conscious deployments, small to medium models
 
-**Current Standalone Setup (Pi 4/5 with USB LoRa):**
+**Setup:**
 ```bash
-# On Pi 4/5 - runs the bot with radio connected via USB
+# On Pi 4/5 - runs the bot
 sudo apt-get install -y python3-pip python3-serial python3-venv
 git clone https://github.com/hostyorkshire/MCADV
 cd MCADV
 python3 -m venv venv
 venv/bin/pip install -r requirements.txt
 
-# Connect LoRa radio via USB (/dev/ttyUSB0)
+# Run the bot
 venv/bin/python3 adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1
 
 # Optional: Set up SSD for LLM storage
@@ -102,7 +94,7 @@ curl -fsSL https://ollama.com/install.sh | sh
 ollama pull llama3.2:1b
 ```
 
-**Future Distributed Setup:**
+**Distributed Setup (Future):**
 ```bash
 # On Pi Zero 2W (radio gateway only)
 python3 radio_gateway.py --bot-server-url http://pi5.local:5000
