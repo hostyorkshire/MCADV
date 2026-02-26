@@ -558,7 +558,10 @@ class AdventureBot:
         Long messages will be split by _send_reply() when transmitted.
         """
         if not choices:
-          
+            return text
+        choice_line = " ".join(f"{i + 1}:{c}" for i, c in enumerate(choices))
+        return f"{text}\n{choice_line}"
+
     # ------------------------------------------------------------------
     # LLM backends
     # ------------------------------------------------------------------
