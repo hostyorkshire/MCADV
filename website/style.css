@@ -170,6 +170,10 @@ body::before {
     font-size: 1.15em;
 }
 
+.scroll-text p:first-child {
+    text-indent: 0;
+}
+
 .scroll-text p:first-child::first-letter {
     font-size: 6em;
     line-height: 0.8;
