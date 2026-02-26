@@ -225,30 +225,95 @@ venv/bin/pip install -r requirements.txt
 venv/bin/python3 adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1 --debug
 ```
 
-### Pi Zero 2W (Future - Radio Gateway Only)
+### Distributed Mode (Recommended for Pi Zero 2W)
 
-> **Note:** Distributed mode not yet implemented. Pi Zero 2W will only run the radio 
-> gateway component (radio_gateway.py) in future releases. The bot itself runs on Pi 4/5.
+**Architecture:** Pi Zero 2W (radio gateway) ← Network → Pi 4/5 (bot server)
+
+#### Step 1: Set up Bot Server (Pi 4/5, Jetson, or Ubuntu PC)
+
+```bash
+# On the bot server (Pi 4/5)
+git clone https://github.com/hostyorkshire/MCADV
+cd MCADV
+bash scripts/setup_bot_server.sh
+
+# Optional: Install Ollama for local LLM
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull llama3.2:1b
+
+# Start the bot server
+sudo systemctl start mcadv_bot_server
+```
+
+#### Step 2: Set up Radio Gateway (Pi Zero 2W)
+
+```bash
+# On Pi Zero 2W
+git clone https://github.com/hostyorkshire/MCADV
+cd MCADV
+bash scripts/setup_radio_gateway.sh
+# Enter bot server URL when prompted (e.g., http://pi5.local:5000)
+
+# Start the gateway
+sudo systemctl start radio_gateway
+```
+
+**Testing the connection:**
+```bash
+# On Pi Zero 2W, check gateway logs
+sudo journalctl -u radio_gateway -f
+
+# On bot server, check server logs
+sudo journalctl -u mcadv_bot_server -f
+```
+
+### Pi Zero 2W (Radio Gateway Only)
+
+> **Note:** In distributed mode, Pi Zero 2W runs only the radio gateway (radio_gateway.py). 
+> The bot itself runs on Pi 4/5 or more powerful hardware.
 
 ---
 
 ## Configuration reference
 
+### adventure_bot.py (Bot Server)
+
 ```
 usage: adventure_bot.py [-h] [-p PORT] [-b BAUD] [-d] [-a] [-c CHANNEL_IDX]
                         [--ollama-url OLLAMA_URL] [--model MODEL]
                         [--openai-key OPENAI_KEY] [--groq-key GROQ_KEY]
+                        [--distributed-mode] [--http-port HTTP_PORT] 
+                        [--http-host HTTP_HOST]
 
 options:
-  -p, --port         Serial port (e.g. /dev/ttyUSB0). Auto-detects if omitted.
-  -b, --baud         Baud rate (default: 115200)
-  -d, --debug        Enable verbose debug output
-  -a, --announce     Send a periodic announcement every 3 hours
-  -c, --channel-idx  Only respond on this MeshCore channel index (e.g. 1)
-  --ollama-url       Ollama base URL (default: http://localhost:11434)
-  --model            Ollama model name (default: llama3.2:1b)
-  --openai-key       OpenAI API key
-  --groq-key         Groq API key
+  -p, --port              Serial port (e.g. /dev/ttyUSB0). Not used in distributed mode.
+  -b, --baud              Baud rate (default: 115200)
+  -d, --debug             Enable verbose debug output
+  -a, --announce          Send periodic announcements every 3 hours (direct mode only)
+  -c, --channel-idx       Only respond on this MeshCore channel index (e.g. 1)
+  --ollama-url            Ollama base URL (default: http://localhost:11434)
+  --model                 Ollama model name (default: llama3.2:1b)
+  --openai-key            OpenAI API key
+  --groq-key              Groq API key
+  --distributed-mode      Run as HTTP server (no direct radio connection)
+  --http-port             HTTP server port (default: 5000)
+  --http-host             HTTP server host (default: 0.0.0.0)
+```
+
+### radio_gateway.py (Radio Gateway)
+
+```
+usage: radio_gateway.py [-h] --bot-server-url URL [-p PORT] [-b BAUD] [-d]
+                        [-c CHANNEL_IDX] [--node-id NODE_ID] [--timeout TIMEOUT]
+
+options:
+  --bot-server-url        Bot server URL (required, e.g. http://pi5.local:5000)
+  -p, --port              Serial port (e.g. /dev/ttyUSB0). Auto-detects if omitted.
+  -b, --baud              Baud rate (default: 115200)
+  -d, --debug             Enable verbose debug output
+  -c, --channel-idx       Only forward messages from this channel index
+  --node-id               MeshCore node identifier (default: GATEWAY)
+  --timeout               HTTP request timeout in seconds (default: 30)
 ```
 
 Environment variables: `OLLAMA_URL`, `OLLAMA_MODEL`, `OPENAI_API_KEY`, `GROQ_API_KEY`
@@ -258,7 +323,9 @@ Environment variables: `OLLAMA_URL`, `OLLAMA_MODEL`, `OPENAI_API_KEY`, `GROQ_API
 ## Architecture
 
 ```
-adventure_bot.py          ← main bot, all game logic
+adventure_bot.py          ← main bot, all game logic (direct or distributed mode)
+  └── uses MeshCore API   ← meshcore.py handles all LoRa serial I/O (direct mode)
+radio_gateway.py          ← radio gateway for distributed mode (Pi Zero 2W)
   └── uses MeshCore API   ← meshcore.py handles all LoRa serial I/O
         └── logging_config.py
 logs/
@@ -268,8 +335,11 @@ logs/
 tests/
   └── test_adventure_bot.py
 scripts/
-  ├── setup_mcadv.sh      ← installation script
-  └── adventure_bot.service
+  ├── setup_mcadv.sh           ← installation script (direct mode)
+  ├── setup_bot_server.sh      ← bot server setup (distributed mode)
+  ├── setup_radio_gateway.sh   ← radio gateway setup (distributed mode)
+  ├── adventure_bot.service
+  └── bot_server.service
 config/
   ├── .flake8             ← linting configuration
   └── .pylintrc
@@ -277,7 +347,7 @@ config/
 
 See [STRUCTURE.md](STRUCTURE.md) for detailed repository organization.
 
-### Message flow
+### Message flow (Direct Mode)
 
 ```
 MeshCore radio (USB serial)
@@ -293,6 +363,39 @@ meshcore.py  ─── _dispatch_channel_message() ──▶ handle_message()
                                    ┌──────┴──────┐    │
                                  Ollama/OpenAI  Offline
                                    └──────┬──────┘
+                                          ▼
+                                   mesh.send_message()  ──▶ LoRa radio
+```
+
+### Message flow (Distributed Mode)
+
+```
+MeshCore radio (USB serial on Pi Zero 2W)
+  │  binary frame (LoRa)
+  ▼
+radio_gateway.py ─── meshcore.py ──▶ HTTP POST to bot server
+                                          │
+                                          ▼
+                                    adventure_bot.py (HTTP server)
+                                    ┌──────┴──────┐
+                                    │   Flask     │
+                                    └──────┬──────┘
+                                          │
+                                   handle_message()
+                                          │
+                              ┌───────────┼───────────┐
+                              │           │           │
+                            !adv       1/2/3       !quit
+                              │           │           │
+                       _generate_story()  │     _clear_session()
+                       ┌──────┴──────┐    │
+                     Ollama/OpenAI  Offline
+                       └──────┬──────┘
+                              ▼
+                        HTTP response
+                              │
+                              ▼
+                       radio_gateway.py ──▶ LoRa radio
                                           ▼
                                    mesh.send_message()  ──▶ LoRa radio
 ```
