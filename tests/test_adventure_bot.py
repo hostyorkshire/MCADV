@@ -6,7 +6,6 @@ Tests run without any radio hardware by using MeshCore in simulation mode
 (serial_port=None) and replacing mesh.send_message with a MagicMock.
 """
 
-import json
 import os
 import sys
 import tempfile
@@ -16,7 +15,7 @@ from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from adventure_bot import (
+from adventure_bot import (  # noqa: E402
     ANNOUNCE_MESSAGE,
     FALLBACK_STORIES,
     MAX_MSG_LEN,
@@ -27,7 +26,7 @@ from adventure_bot import (
     _HORROR_STORY,
     _SCIFI_STORY,
 )
-from meshcore import MeshCore, MeshCoreMessage
+from meshcore import MeshCoreMessage  # noqa: E402
 
 
 # ---------------------------------------------------------------------------

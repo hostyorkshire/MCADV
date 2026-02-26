@@ -611,7 +611,7 @@ class MeshCore:
                         if length == 0 or length > _MAX_FRAME_SIZE:
                             self.log(f"Binary frame length {length} out of range, skipping")
                             continue
-                        payload = raw[3 : 3 + length]
+                        payload = raw[3:3 + length]
                         if not payload:
                             continue
                         self._parse_binary_frame(payload)
@@ -950,7 +950,7 @@ class MeshCore:
         colon = text.find(": ")
         if colon > 0:
             sender = text[:colon]
-            content = text[colon + 2 :]
+            content = text[colon + 2:]
         else:
             sender = "channel"
             content = text
