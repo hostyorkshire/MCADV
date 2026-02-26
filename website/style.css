@@ -18,8 +18,12 @@
 }
 
 body {
-    background: linear-gradient(135deg, #0a0806 0%, #1a1510 50%, #0f0d0a 100%);
+    background: 
+        url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"><path d="M60 10 C55 10 50 15 50 20 C50 25 53 28 55 32 L45 42 C43 40 40 38 35 38 C30 38 25 42 25 47 C25 52 30 56 35 56 C37 56 39 55 41 54 L50 63 L50 80 C48 82 45 85 45 90 C45 95 50 100 55 100 L65 100 C70 100 75 95 75 90 C75 85 72 82 70 80 L70 63 L79 54 C81 55 83 56 85 56 C90 56 95 52 95 47 C95 42 90 38 85 38 C80 38 77 40 75 42 L65 32 C67 28 70 25 70 20 C70 15 65 10 60 10 Z" fill="rgba(139, 115, 85, 0.3)" stroke="none"/></svg>'),
+        linear-gradient(135deg, #0a0806 0%, #1a1510 50%, #0f0d0a 100%);
     background-attachment: fixed;
+    background-size: 120px 120px, 100%;
+    background-position: center, center;
     color: var(--text-light);
     font-family: 'Cinzel', serif;
     line-height: 1.8;
