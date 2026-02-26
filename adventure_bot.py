@@ -57,8 +57,8 @@ def _ensure_requests():
 # multi-hop path overhead.
 #
 # Note: When messages are transmitted on a channel, MeshCore firmware prepends
-# the node_id in the format "node_id: content". For this bot with node_id="MCADV",
-# the overhead is 7 characters ("MCADV: "). The _send_reply() method automatically
+# the node_id in the format "node_id: content". For this bot with node_id="CYOA Bot",
+# the overhead is 11 characters ("CYOA Bot: "). The _send_reply() method automatically
 # accounts for this overhead when splitting long messages.
 # ---------------------------------------------------------------------------
 MAX_MSG_LEN = 200
@@ -74,7 +74,7 @@ SESSION_EXPIRY_SECONDS = 7200  # 2 hours of inactivity
 # Periodic announcement
 # ---------------------------------------------------------------------------
 ANNOUNCE_INTERVAL = 3 * 60 * 60  # 3 hours
-ANNOUNCE_MESSAGE = "📖 MCADV: AI story bot! !adv to start. Reply 1/2/3 to choose. !help for info."
+ANNOUNCE_MESSAGE = "📖 CYOA Bot: AI story bot! !adv to start. Reply 1/2/3 to choose. !help for info."
 
 # ---------------------------------------------------------------------------
 # LLM prompt
@@ -341,7 +341,7 @@ VALID_THEMES: List[str] = list(FALLBACK_STORIES.keys())
 class _TerminalMeshStub:
     """Stub mesh object for terminal mode"""
     def __init__(self):
-        self.node_id = "MCADV"
+        self.node_id = "CYOA Bot"
         self.send_message = lambda *args, **kwargs: None
 
 
@@ -395,7 +395,7 @@ class AdventureBot:
         # MeshCore handles all LoRa serial I/O (not used in terminal or distributed mode)
         if not terminal and not distributed_mode:
             self.mesh = MeshCore(
-                node_id="MCADV",
+                node_id="CYOA Bot",
                 debug=debug,
                 serial_port=port,
                 baud_rate=baud,
@@ -428,7 +428,7 @@ class AdventureBot:
 
         The effective payload size accounts for:
         - MAX_MSG_LEN (200 chars) - the LoRa payload limit
-        - Node name prefix overhead (e.g., "MCADV: " = 7 chars)
+        - Node name prefix overhead (e.g., "CYOA Bot: " = 11 chars)
         - Part indicator suffix (dynamically calculated based on number of parts)
         """
         # Calculate overhead from the node_id prefix added by MeshCore firmware
@@ -722,7 +722,7 @@ class AdventureBot:
 
         # ---- !help -------------------------------------------------------
         if content_lower in ("!help", "help"):
-            response = "MCADV: !adv[theme] start, 1/2/3 choose, !quit end. Themes: fantasy scifi horror"
+            response = "CYOA Bot: !adv[theme] start, 1/2/3 choose, !quit end. Themes: fantasy scifi horror"
 
         # ---- !adv / !start [theme] ---------------------------------------
         elif content_lower.startswith(("!adv", "!start")):
