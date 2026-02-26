@@ -302,12 +302,14 @@ class AdventureBot:
         model: str = "llama2",
         http_host: str = "0.0.0.0",
         http_port: int = 5000,
+        distributed_mode: bool = False,
     ):
         self.debug = debug
         self.ollama_url = ollama_url
         self.model = model
         self.http_host = http_host
         self.http_port = http_port
+        self.distributed_mode = distributed_mode
 
         self._sessions: Dict[str, Dict] = {}
         self._session_lock = Lock()
@@ -331,7 +333,7 @@ class AdventureBot:
     def _setup_routes(self):
         """Set up Flask routes for HTTP mode."""
         
-        @self.app.route("/message", methods=["POST"])
+        @self.app.route("/api/message", methods=["POST"])
         def message_endpoint():
             data = request.get_json()
             msg = MeshCoreMessage(
@@ -342,7 +344,7 @@ class AdventureBot:
             response = self.handle_message(msg)
             return jsonify({"response": response})
 
-        @self.app.route("/health", methods=["GET"])
+        @self.app.route("/api/health", methods=["GET"])
         def health():
             return jsonify({"status": "healthy"})
 
@@ -616,6 +618,8 @@ class AdventureBot:
 
     def run_http_server(self):
         """Run the bot as an HTTP server."""
+        if self.distributed_mode:
+            self.logger.info("Running in distributed mode (HTTP only, no direct radio connection)")
         self.logger.info(f"Starting HTTP server on {self.http_host}:{self.http_port}")
         self.app.run(host=self.http_host, port=self.http_port)
 
@@ -629,6 +633,11 @@ def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description="MCADV Adventure Bot")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument(
+        "--distributed-mode",
+        action="store_true",
+        help="Run as HTTP server only (no direct radio connection) for distributed architecture",
+    )
     parser.add_argument(
         "--ollama-url",
         default="http://localhost:11434",
@@ -646,6 +655,7 @@ def main():
         model=args.model,
         http_host=args.http_host,
         http_port=args.http_port,
+        distributed_mode=args.distributed_mode,
     )
     
     bot.run_http_server()
