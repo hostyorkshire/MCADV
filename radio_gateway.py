@@ -7,7 +7,7 @@ All bot logic and LLM processing happens on a separate server (Pi 4/5, Jetson, o
 
 Architecture:
   Player → LoRa → Pi Zero 2W (this script) → HTTP → Bot Server (adventure_bot.py)
-  
+
 The gateway:
   1. Receives messages from LoRa radio via MeshCore
   2. Forwards them to the bot server via HTTP POST
@@ -19,8 +19,6 @@ all compute-intensive operations to a more powerful device.
 """
 
 import argparse
-import json
-import os
 import sys
 import time
 from typing import Optional
@@ -39,11 +37,11 @@ from meshcore import MeshCore, MeshCoreMessage
 class RadioGateway:
     """
     LoRa radio gateway that forwards messages to a bot server via HTTP.
-    
+
     This runs on Pi Zero 2W and handles only radio I/O, keeping memory
     usage minimal. All game logic and LLM processing happens on the bot server.
     """
-    
+
     def __init__(
         self,
         bot_server_url: str,
@@ -56,7 +54,7 @@ class RadioGateway:
     ):
         """
         Initialize the radio gateway.
-        
+
         Args:
             bot_server_url: URL of the bot server (e.g., http://pi5.local:5000)
             port: Serial port for LoRa radio (auto-detects if None)
@@ -70,13 +68,13 @@ class RadioGateway:
         self.allowed_channel_idx = allowed_channel_idx
         self.timeout = timeout
         self._running = False
-        
+
         # Logging
         self.logger, self.error_logger = get_meshcore_logger(debug=debug)
-        
+
         # HTTP session for connection pooling (faster requests)
         self.session = requests.Session()
-        
+
         # MeshCore handles all LoRa serial I/O
         self.mesh = MeshCore(
             node_id=node_id,
@@ -85,7 +83,7 @@ class RadioGateway:
             baud_rate=baud,
         )
         self.mesh.register_handler("text", self.handle_message)
-        
+
         # Stats for monitoring
         self.stats = {
             "messages_received": 0,
@@ -93,15 +91,15 @@ class RadioGateway:
             "messages_failed": 0,
             "responses_sent": 0,
         }
-    
+
     def handle_message(self, message: MeshCoreMessage) -> None:
         """
         Handle incoming message from LoRa radio.
-        
+
         Forwards the message to the bot server and sends the response back via LoRa.
         """
         self.stats["messages_received"] += 1
-        
+
         # Filter by channel if configured
         if self.allowed_channel_idx is not None:
             if message.channel_idx != self.allowed_channel_idx:
@@ -110,17 +108,17 @@ class RadioGateway:
                     f"(only listening to {self.allowed_channel_idx})"
                 )
                 return
-        
+
         sender = message.sender
         content = message.content
         channel_idx = message.channel_idx if message.channel_idx is not None else 0
-        
+
         self.logger.info(f"[{sender}@ch{channel_idx}] {content}")
-        
+
         try:
             # Forward message to bot server
             response_text = self._forward_to_bot(message)
-            
+
             if response_text:
                 self.stats["messages_forwarded"] += 1
                 # Send response back via LoRa
@@ -129,16 +127,16 @@ class RadioGateway:
             else:
                 self.stats["messages_failed"] += 1
                 self.logger.warning(f"No response from bot server for message from {sender}")
-                
+
         except Exception as e:
             self.stats["messages_failed"] += 1
             self.error_logger.exception(f"Error handling message from {sender}")
             self.logger.error(f"Error handling message: {e}")
-    
+
     def _forward_to_bot(self, message: MeshCoreMessage) -> Optional[str]:
         """
         Forward a message to the bot server via HTTP POST.
-        
+
         Returns the bot's response text, or None if the request failed.
         """
         url = f"{self.bot_server_url}/api/message"
@@ -148,7 +146,7 @@ class RadioGateway:
             "channel_idx": message.channel_idx if message.channel_idx is not None else 0,
             "timestamp": message.timestamp,
         }
-        
+
         try:
             self.logger.debug(f"Forwarding to bot server: {url}")
             response = self.session.post(
@@ -157,23 +155,23 @@ class RadioGateway:
                 timeout=self.timeout,
             )
             response.raise_for_status()
-            
+
             data = response.json()
             return data.get("response")
-            
+
         except RequestException as e:
-            self.error_logger.exception(f"HTTP request to bot server failed")
+            self.error_logger.exception("HTTP request to bot server failed")
             self.logger.error(f"Failed to contact bot server: {e}")
             return None
         except (KeyError, ValueError) as e:
-            self.error_logger.exception(f"Invalid response from bot server")
+            self.error_logger.exception("Invalid response from bot server")
             self.logger.error(f"Invalid response from bot server: {e}")
             return None
-    
+
     def _send_response(self, text: str, channel_idx: int) -> None:
         """
         Send a response back to the LoRa network.
-        
+
         The bot server handles message splitting if needed, so we just
         send whatever we receive. However, if we get a response that looks
         like it has multiple parts, we send them separately.
@@ -191,11 +189,11 @@ class RadioGateway:
         else:
             # Single message
             self.mesh.send_message(text, "text", channel_idx=channel_idx)
-    
+
     def run(self) -> None:
         """Start the gateway and run until Ctrl+C."""
         log_startup_info(self.logger, "MCADV Radio Gateway", "1.0.0")
-        
+
         # Test connection to bot server
         try:
             test_url = f"{self.bot_server_url}/api/health"
@@ -206,27 +204,27 @@ class RadioGateway:
         except RequestException as e:
             self.logger.warning(f"Cannot reach bot server at {self.bot_server_url}: {e}")
             self.logger.warning("Gateway will start anyway, but messages will fail until server is available")
-        
+
         self.mesh.start()
         self._running = True
-        
+
         if self.allowed_channel_idx is not None:
             msg = f"Radio gateway running on channel_idx={self.allowed_channel_idx}"
         else:
             msg = "Radio gateway running on all channels"
-        
+
         print(msg)
         print(f"Bot server: {self.bot_server_url}")
         self.logger.info(msg)
         self.logger.info(f"Bot server: {self.bot_server_url}")
         print("Press Ctrl+C to stop.\n", flush=True)
-        
+
         last_stats_time = time.time()
-        
+
         try:
             while self._running:
                 time.sleep(1)
-                
+
                 # Log stats every 5 minutes
                 if time.time() - last_stats_time >= 300:
                     self.logger.info(
@@ -236,7 +234,7 @@ class RadioGateway:
                         f"sent={self.stats['responses_sent']}"
                     )
                     last_stats_time = time.time()
-                    
+
         except KeyboardInterrupt:
             print("\nStopping...")
             self.logger.info("Stopping...")
@@ -267,7 +265,7 @@ Examples:
   python radio_gateway.py -p /dev/ttyUSB0 --bot-server-url http://pi5.local:5000 --debug
 """,
     )
-    
+
     parser.add_argument(
         "--bot-server-url",
         required=True,
@@ -304,9 +302,9 @@ Examples:
         default=30,
         help="HTTP request timeout in seconds (default: 30)"
     )
-    
+
     args = parser.parse_args()
-    
+
     # Create and run gateway
     gateway = RadioGateway(
         bot_server_url=args.bot_server_url,
@@ -317,7 +315,7 @@ Examples:
         node_id=args.node_id,
         timeout=args.timeout,
     )
-    
+
     gateway.run()
 
 
