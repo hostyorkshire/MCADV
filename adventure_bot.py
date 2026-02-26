@@ -375,6 +375,10 @@ class AdventureBot:
         self._sessions_dirty = False  # Track if sessions need saving
         self._last_session_save = time.time()  # For batched saves
         self._load_sessions()
+        
+        # HTTP session for connection pooling (faster LLM calls)
+        # Only created when first LLM call is made
+        self._http_session = None
 
         # MeshCore handles all LoRa serial I/O
         self.mesh = MeshCore(
@@ -503,6 +507,20 @@ class AdventureBot:
     # ------------------------------------------------------------------
     # LLM backends
     # ------------------------------------------------------------------
+    
+    def _get_http_session(self):
+        """
+        Get or create HTTP session for connection pooling.
+        
+        Reusing connections improves performance and reduces latency
+        for repeated LLM API calls. Lazy creation ensures no overhead
+        when running in offline mode.
+        """
+        if self._http_session is None:
+            requests, _ = _ensure_requests()
+            if requests is not None:
+                self._http_session = requests.Session()
+        return self._http_session
 
     def _call_ollama(self, prompt: str) -> Optional[str]:
         """
@@ -515,8 +533,11 @@ class AdventureBot:
         requests, RequestException = _ensure_requests()
         if requests is None:
             return None
+        session = self._get_http_session()
+        if session is None:
+            return None
         try:
-            resp = requests.post(
+            resp = session.post(
                 f"{self.ollama_url}/api/generate",
                 json={
                     "model": self.model,
@@ -546,8 +567,11 @@ class AdventureBot:
         requests, RequestException = _ensure_requests()
         if requests is None:
             return None
+        session = self._get_http_session()
+        if session is None:
+            return None
         try:
-            resp = requests.post(
+            resp = session.post(
                 "https://api.openai.com/v1/chat/completions",
                 headers={"Authorization": f"Bearer {self.openai_key}", "Content-Type": "application/json"},
                 json={
@@ -579,8 +603,11 @@ class AdventureBot:
         requests, RequestException = _ensure_requests()
         if requests is None:
             return None
+        session = self._get_http_session()
+        if session is None:
+            return None
         try:
-            resp = requests.post(
+            resp = session.post(
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"},
                 json={

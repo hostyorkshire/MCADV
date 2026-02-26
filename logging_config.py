@@ -40,11 +40,15 @@ def setup_logger(name: str, log_file: str, level=logging.INFO, console_output: b
         fmt="[%(asctime)s] %(name)s [%(levelname)s]: %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
     )
 
-    # File handler with rotation (10 MB max, keep 5 backup files)
+    # File handler with rotation 
+    # For Pi: smaller files (5MB), fewer backups (3) to save SD card space
     if file_output:
         log_path = LOGS_DIR / log_file
         file_handler = logging.handlers.RotatingFileHandler(
-            log_path, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"  # 10 MB
+            log_path, 
+            maxBytes=5 * 1024 * 1024,  # 5 MB (reduced for Pi)
+            backupCount=3,  # Keep 3 backups (reduced for Pi)
+            encoding="utf-8"
         )
         file_handler.setLevel(level)
         file_handler.setFormatter(formatter)
@@ -86,9 +90,13 @@ def setup_error_logger(name: str, error_log_file: str):
     )
 
     # Error file handler with rotation
+    # For Pi: smaller files (5MB), fewer backups (3) to save SD card space
     error_log_path = LOGS_DIR / error_log_file
     error_handler = logging.handlers.RotatingFileHandler(
-        error_log_path, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"  # 10 MB
+        error_log_path, 
+        maxBytes=5 * 1024 * 1024,  # 5 MB (reduced for Pi)
+        backupCount=3,  # Keep 3 backups (reduced for Pi)
+        encoding="utf-8"
     )
     error_handler.setLevel(logging.ERROR)
     error_handler.setFormatter(formatter)
