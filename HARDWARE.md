@@ -19,8 +19,8 @@ Player → LoRa → Pi Zero 2W → Network → Pi 4/5 (adventure_bot.py) → LLM
               (radio_gateway.py)      All game logic + LLM
 ```
 
-> **Note:** Distributed mode components (radio_gateway.py for Pi Zero 2W) are planned
-> but not yet implemented.
+> **Note:** Distributed mode is fully implemented. Use `adventure_bot.py --distributed-mode`
+> on the bot server and `radio_gateway.py` on the Pi Zero 2W gateway.
 
 ---
 
@@ -382,7 +382,7 @@ Setup:
 
 ## Storage Recommendations
 
-### Pi Zero 2W (Radio Gateway - Future)
+### Pi Zero 2W (Radio Gateway)
 - **Minimum:** 16GB microSD (Class 10)
 - **Recommended:** 32GB microSD (UHS-1)
 - Only stores logs and message queue (~100MB)
