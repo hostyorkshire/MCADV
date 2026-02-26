@@ -458,7 +458,7 @@ python3 adventure_bot.py \
   --model llama3.2:1b
 ```
 
-### Example 2: Pi 4 Standalone (All-in-One)
+### Example 2: Pi 4 All-in-One Development
 
 ```bash
 # Install Ollama

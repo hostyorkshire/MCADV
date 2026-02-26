@@ -353,11 +353,13 @@ class AdventureBot:
         announce: bool = False,
         ollama_url: str = "http://localhost:11434",
         model: str = "llama3.2:1b",
+
     ):
         self.allowed_channel_idx = allowed_channel_idx
         self.announce = announce
         self.ollama_url = ollama_url.rstrip("/")
         self.model = model
+
         self._running = False
 
         # Logging
@@ -373,14 +375,17 @@ class AdventureBot:
         # Only created when first LLM call is made
         self._http_session = None
 
-        # MeshCore handles all LoRa serial I/O
-        self.mesh = MeshCore(
-            node_id="MCADV",
-            debug=debug,
-            serial_port=port,
-            baud_rate=baud,
-        )
-        self.mesh.register_handler("text", self.handle_message)
+        # MeshCore handles all LoRa serial I/O (not used in distributed mode)
+        if not distributed_mode:
+            self.mesh = MeshCore(
+                node_id="MCADV",
+                debug=debug,
+                serial_port=port,
+                baud_rate=baud,
+            )
+            self.mesh.register_handler("text", self.handle_message)
+        else:
+            self.mesh = None  # No direct mesh connection in distributed mode
 
     # ------------------------------------------------------------------
     # Helpers
@@ -670,12 +675,14 @@ class AdventureBot:
     # Message handler (called by MeshCore for every incoming text message)
     # ------------------------------------------------------------------
 
-    def handle_message(self, message: MeshCoreMessage) -> None:
+    def handle_message(self, message: MeshCoreMessage) -> Optional[str]:
         """
         Dispatch an incoming MeshCore channel message to the right command.
 
         This is the single entry point registered with MeshCore.  It is also
         called directly by unit tests (no radio hardware required).
+        
+        In distributed mode, returns the response text instead of sending via mesh.
         """
         sender = message.sender
         content = message.content.strip()
@@ -684,59 +691,62 @@ class AdventureBot:
 
         # Drop messages from channels we are not configured to serve
         if self.allowed_channel_idx is not None and channel_idx != self.allowed_channel_idx:
-            return
+            return None
 
         self._expire_sessions()
         key = self._session_key(message)
+        
+        response = None
 
         # ---- !help -------------------------------------------------------
         if content_lower in ("!help", "help"):
-            self._send_reply(
-                "MCADV: !adv[theme] start, 1/2/3 choose, !quit end. Themes: fantasy scifi horror",
-                channel_idx,
-            )
-            return
+            response = "MCADV: !adv[theme] start, 1/2/3 choose, !quit end. Themes: fantasy scifi horror"
 
         # ---- !adv / !start [theme] ---------------------------------------
-        if content_lower.startswith(("!adv", "!start")):
+        elif content_lower.startswith(("!adv", "!start")):
             parts = content.split(maxsplit=1)
             raw_theme = parts[1].strip().lower() if len(parts) > 1 else "fantasy"
             theme = raw_theme if raw_theme in VALID_THEMES else "fantasy"
             self.logger.info(f"New adventure for {key!r}: theme={theme!r}")
             self._update_session(key, {"status": "active", "node": "start", "history": [], "theme": theme})
-            story = self._generate_story(key, choice=None, theme=theme)
-            self._send_reply(story, channel_idx)
-            return
+            response = self._generate_story(key, choice=None, theme=theme)
 
         # ---- !quit / !end ------------------------------------------------
-        if content_lower in ("!quit", "!end", "!stop"):
+        elif content_lower in ("!quit", "!end", "!stop"):
             self._clear_session(key)
-            self._send_reply("Adventure ended. Type !adv to start a new one.", channel_idx)
-            return
+            response = "Adventure ended. Type !adv to start a new one."
 
         # ---- choice: 1, 2, or 3 ------------------------------------------
-        if content in ("1", "2", "3"):
+        elif content in ("1", "2", "3"):
             session = self._get_session(key)
             if not session or session.get("status") != "active":
-                self._send_reply("No active adventure. Type !adv to start.", channel_idx)
-                return
-            theme = session.get("theme", "fantasy")
-            self.logger.info(f"Session {key!r} chose option {content}")
-            story = self._generate_story(key, choice=content, theme=theme)
-            self._send_reply(story, channel_idx)
-            if self._get_session(key).get("status") == "finished":
-                self._clear_session(key)
-            return
+                response = "No active adventure. Type !adv to start."
+            else:
+                theme = session.get("theme", "fantasy")
+                self.logger.info(f"Session {key!r} chose option {content}")
+                response = self._generate_story(key, choice=content, theme=theme)
+                if self._get_session(key).get("status") == "finished":
+                    self._clear_session(key)
 
         # ---- !status / !state --------------------------------------------
-        if content_lower in ("!status", "!state"):
+        elif content_lower in ("!status", "!state"):
             session = self._get_session(key)
             if session and session.get("status") == "active":
                 theme = session.get("theme", "fantasy")
-                self._send_reply(f"Adventure active ({theme}). Enter 1, 2 or 3.", channel_idx)
+                response = f"Adventure active ({theme}). Enter 1, 2 or 3."
             else:
-                self._send_reply("No active adventure. Type !adv to start.", channel_idx)
-            return
+                response = "No active adventure. Type !adv to start."
+        
+        # Send response
+        if response:
+            if self.distributed_mode:
+                # In distributed mode, return response instead of sending
+                return response
+            else:
+                # In direct mode, send via mesh
+                self._send_reply(response, channel_idx)
+        
+        return response if self.distributed_mode else None
 
     # ------------------------------------------------------------------
     # Main run loop
@@ -744,6 +754,13 @@ class AdventureBot:
 
     def run(self) -> None:
         """Connect to MeshCore and run the bot until Ctrl-C."""
+        if self.distributed_mode:
+            self._run_http_server()
+        else:
+            self._run_direct_mode()
+    
+    def _run_direct_mode(self) -> None:
+        """Run in direct mode with MeshCore radio connection."""
         log_startup_info(self.logger, "MCADV Adventure Bot", "1.0.0")
 
         self.mesh.start()
@@ -778,6 +795,76 @@ class AdventureBot:
             self._running = False
             self._save_sessions(force=True)  # Final save on shutdown
             self.mesh.stop()
+            print("MCADV stopped.")
+            self.logger.info("MCADV stopped.")
+    
+    def _run_http_server(self) -> None:
+        """Run in distributed mode with HTTP server."""
+        try:
+            from flask import Flask, request, jsonify
+        except ImportError:
+            print("Error: Flask not found. Install with: pip install flask")
+            sys.exit(1)
+        
+        app = Flask(__name__)
+        
+        @app.route('/api/health', methods=['GET'])
+        def health():
+            """Health check endpoint."""
+            return jsonify({"status": "ok", "mode": "distributed"})
+        
+        @app.route('/api/message', methods=['POST'])
+        def handle_api_message():
+            """Handle incoming message from radio gateway."""
+            try:
+                data = request.get_json()
+                if not data:
+                    return jsonify({"error": "No JSON data"}), 400
+                
+                # Create a MeshCoreMessage from the JSON data
+                message = MeshCoreMessage(
+                    sender=data.get("sender", "unknown"),
+                    content=data.get("content", ""),
+                    channel_idx=data.get("channel_idx", 0),
+                    timestamp=data.get("timestamp"),
+                )
+                
+                # Process the message and get response
+                response_text = self.handle_message(message)
+                
+                if response_text:
+                    return jsonify({"response": response_text})
+                else:
+                    return jsonify({"response": ""})
+                    
+            except Exception as e:
+                self.error_logger.exception("Error handling API message")
+                return jsonify({"error": str(e)}), 500
+        
+        log_startup_info(self.logger, "MCADV Adventure Bot (Distributed Mode)", "1.0.0")
+        print(f"HTTP server starting on {self.http_host}:{self.http_port}")
+        self.logger.info(f"HTTP server starting on {self.http_host}:{self.http_port}")
+        print("Press Ctrl+C to stop.\n", flush=True)
+        
+        # Start background thread for session saves
+        import threading
+        def session_saver():
+            while self._running:
+                time.sleep(5)
+                self._save_sessions()
+        
+        self._running = True
+        saver_thread = threading.Thread(target=session_saver, daemon=True)
+        saver_thread.start()
+        
+        try:
+            app.run(host=self.http_host, port=self.http_port, threaded=True)
+        except KeyboardInterrupt:
+            print("\nStopping...")
+            self.logger.info("Stopping...")
+        finally:
+            self._running = False
+            self._save_sessions(force=True)
             print("MCADV stopped.")
             self.logger.info("MCADV stopped.")
 
@@ -918,6 +1005,7 @@ Examples:
         default=os.environ.get("OLLAMA_MODEL", "llama3.2:1b"),
         help="Ollama model name (default: llama3.2:1b or $OLLAMA_MODEL)",
     )
+
     args = parser.parse_args()
 
     bot = AdventureBot(
@@ -928,6 +1016,7 @@ Examples:
         announce=args.announce,
         ollama_url=args.ollama_url,
         model=args.model,
+
     )
     
     # Run in terminal mode or radio mode
