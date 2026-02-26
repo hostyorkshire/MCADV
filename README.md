@@ -2,6 +2,8 @@
 
 AI-powered Choose Your Own Adventure bot for MeshCore LoRa mesh networks.
 
+**Offline-First Architecture:** MCADV runs entirely offline using locally-hosted AI models via Ollama—requiring no internet access whatsoever. The network depends solely on the meshcore LoRa mesh network, making it truly independent from external connectivity.
+
 ## Quick Setup
 
 For detailed setup instructions with virtual environment (recommended):

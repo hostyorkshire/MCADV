@@ -10,6 +10,8 @@ A virtual environment (VENV) provides:
 - **Portability**: Ensures consistent behavior across different systems
 - **No System-Wide Changes**: Doesn't require sudo/root to install Python packages
 
+**Note:** MCADV is designed to run entirely offline using locally-hosted AI models (Ollama). No internet connection is required for operation—the bot depends solely on the meshcore LoRa network.
+
 ## Quick Start
 
 ### 1. Initial Setup (First Time Only)

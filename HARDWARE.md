@@ -66,6 +66,7 @@ The **Raspberry Pi Zero 2W** (1GHz quad-core, 512MB RAM) is excellent for handli
 - ✅ Affordable (~$80 for 8GB model)
 - ✅ Good community support
 - ✅ Easy networking with Pi Zero
+- ✅ Fully offline operation (no internet required)
 
 **Cons:**
 - ❌ Limited to small quantized models
