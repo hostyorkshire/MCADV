@@ -26,7 +26,6 @@ Messages longer than 200 characters are split across multiple LoRa transmissions
 import argparse
 import json
 import os
-import sys
 import time
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -38,6 +37,7 @@ from meshcore import MeshCore, MeshCoreMessage
 # This speeds up startup when running in offline mode
 _requests = None
 _RequestException = None
+
 
 def _ensure_requests():
     """Lazy import requests module only when needed for LLM calls"""
@@ -54,18 +54,20 @@ def _ensure_requests():
             _RequestException = Exception
     return _requests, _RequestException
 
+
 # ---------------------------------------------------------------------------
 # Message length limit
 # The MeshCore binary protocol frame fits up to ~230 bytes of text payload,
 # but keeping to 200 leaves comfortable headroom for node-name prefixes and
 # multi-hop path overhead.
-# 
+#
 # Note: When messages are transmitted on a channel, MeshCore firmware prepends
 # the node_id in the format "node_id: content". For this bot with node_id="MCADV",
 # the overhead is 7 characters ("MCADV: "). The _send_reply() method automatically
 # accounts for this overhead when splitting long messages.
 # ---------------------------------------------------------------------------
 MAX_MSG_LEN = 200
+
 
 # ---------------------------------------------------------------------------
 # Session persistence
@@ -380,7 +382,7 @@ class AdventureBot:
         self._sessions_dirty = False  # Track if sessions need saving
         self._last_session_save = time.time()  # For batched saves
         self._load_sessions()
-        
+
         # HTTP session for connection pooling (faster LLM calls)
         # Only created when first LLM call is made
         self._http_session = None
@@ -407,10 +409,10 @@ class AdventureBot:
     def _send_reply(self, text: str, channel_idx: int) -> None:
         """
         Send a reply via MeshCore, splitting into multiple messages if needed.
-        
+
         Messages longer than the effective payload size are split across multiple
         LoRa transmissions with markers (1/N, 2/N, etc.) to indicate the part number.
-        
+
         The effective payload size accounts for:
         - MAX_MSG_LEN (200 chars) - the LoRa payload limit
         - Node name prefix overhead (e.g., "MCADV: " = 7 chars)
@@ -419,30 +421,30 @@ class AdventureBot:
         # Calculate overhead from the node_id prefix added by MeshCore firmware
         # Format is "node_id: content", so overhead is len(node_id) + 2
         node_name_overhead = len(self.mesh.node_id) + 2  # +2 for ": "
-        
+
         # Available space for our content in a single message
         effective_max_len = MAX_MSG_LEN - node_name_overhead
-        
+
         # Check if message fits in a single transmission
         if len(text) <= effective_max_len:
             self.mesh.send_message(text, "text", channel_idx=channel_idx)
             return
-        
+
         # Split message into multiple parts
         # First, estimate the number of parts needed to calculate suffix space
         # Start with worst case assumption of " (999/999)" = 11 chars for very long messages
         suffix_space = 11
         chunk_size = effective_max_len - suffix_space
-        
+
         # Calculate actual number of chunks needed
         chunks = []
         remaining = text
         while remaining:
             chunks.append(remaining[:chunk_size])
             remaining = remaining[chunk_size:]
-        
+
         total_parts = len(chunks)
-        
+
         # If we have fewer parts than expected, we can reclaim some space
         # e.g., if total_parts < 100, we only need " (99/99)" = 8 chars
         if total_parts < 100:
@@ -456,7 +458,7 @@ class AdventureBot:
                     chunks.append(remaining[:chunk_size])
                     remaining = remaining[chunk_size:]
                 total_parts = len(chunks)
-        
+
         # Send each chunk with part indicator
         for i, chunk in enumerate(chunks, 1):
             msg = f"{chunk} ({i}/{total_parts})"
@@ -482,21 +484,21 @@ class AdventureBot:
     def _save_sessions(self, force: bool = False) -> None:
         """
         Persist sessions to disk with batching to reduce I/O.
-        
+
         Sessions are only saved if:
         - force=True, or
         - They're marked dirty AND at least 5 seconds have passed since last save
-        
+
         This reduces disk writes on Pi's SD card.
         """
         if not force and not self._sessions_dirty:
             return
-        
+
         # Batch saves: only write if enough time has passed
         now = time.time()
         if not force and (now - self._last_session_save) < 5:
             return
-        
+
         try:
             SESSION_FILE.parent.mkdir(exist_ok=True)
             with open(SESSION_FILE, "w") as f:
@@ -536,7 +538,7 @@ class AdventureBot:
     def _clear_session(self, key: str) -> None:
         """
         Remove the session for key and save immediately.
-        
+
         Force save to ensure quit/end commands take effect right away.
         """
         if key in self._sessions:
@@ -558,15 +560,20 @@ class AdventureBot:
         Long messages will be split by _send_reply() when transmitted.
         """
         if not choices:
-          
+            return text
+
+        # Format choices with numbers
+        choice_text = " ".join(f"{i}:{c}" for i, c in enumerate(choices, 1))
+        return f"{text}\n{choice_text}"
+
     # ------------------------------------------------------------------
     # LLM backends
     # ------------------------------------------------------------------
-    
+
     def _get_http_session(self):
         """
         Get or create HTTP session for connection pooling.
-        
+
         Reusing connections improves performance and reduces latency
         for repeated LLM API calls. Lazy creation ensures no overhead
         when running in offline mode.
