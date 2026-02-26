@@ -19,7 +19,7 @@ Player → LoRa → Pi Zero 2W → Network → Pi 4/5 (adventure_bot.py) → LLM
               (radio_gateway.py)      All game logic + LLM
 ```
 
-> **Note:** Distributed mode components (radio_gateway.py for Pi Zero 2W) are planned 
+> **Note:** Distributed mode components (radio_gateway.py for Pi Zero 2W) are planned
 > but not yet implemented.
 
 ---
@@ -436,7 +436,7 @@ source ~/.bashrc
 
 ---
 
-## Our Recommendations: 🏆 
+## Our Recommendations: 🏆
 
 ### For Development: **Ubuntu Desktop PC**
 
@@ -613,3 +613,4 @@ Use: Multi-location coverage, mesh expansion
 
 - **Q: Can I upgrade later?**
   - A: Yes! Start with Pi 4/5, upgrade to Jetson/Mini PC later. Or start on Ubuntu desktop.
+

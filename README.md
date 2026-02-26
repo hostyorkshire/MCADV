@@ -44,9 +44,9 @@ Player → LoRa → Pi Zero 2W → HTTP → Pi 4/5 (adventure_bot.py) → HTTP �
                                            SSD storage via USB
 ```
 
-**Pi Zero 2W:** Handles only LoRa radio communication (future: radio_gateway.py)  
-**Pi 4/5:** Runs the bot with all game logic and LLM (adventure_bot.py)  
-**Storage:** SSD connected via USB to Pi 4/5 for LLM model storage  
+**Pi Zero 2W:** Handles only LoRa radio communication (future: radio_gateway.py)
+**Pi 4/5:** Runs the bot with all game logic and LLM (adventure_bot.py)
+**Storage:** SSD connected via USB to Pi 4/5 for LLM model storage
 **Alternative:** Desktop PC running Ubuntu instead of Pi 4/5 (for development/testing)
 
 1. A player types `!adv` on the MeshCore channel.
@@ -116,7 +116,7 @@ sudo journalctl -u adventure_bot -f
 
 ### For Pi Zero 2W Deployments ⚠️
 
-**The Pi Zero 2W (512MB RAM) cannot run the bot or LLMs.** It's perfect for handling 
+**The Pi Zero 2W (512MB RAM) cannot run the bot or LLMs.** It's perfect for handling
 LoRa radio communication but needs a partner for the bot and AI processing.
 
 **Recommended distributed setup:**
@@ -348,7 +348,7 @@ sudo journalctl -u mcadv_bot_server -f
 
 ### Pi Zero 2W (Radio Gateway Only)
 
-> **Note:** In distributed mode, Pi Zero 2W runs only the radio gateway (radio_gateway.py). 
+> **Note:** In distributed mode, Pi Zero 2W runs only the radio gateway (radio_gateway.py).
 > The bot itself runs on Pi 4/5 or more powerful hardware.
 
 ---
@@ -527,3 +527,4 @@ This lets you play through adventures and verify all commands work correctly wit
 Built on the same MeshCore companion radio binary protocol as
 [MCWB](https://github.com/hostyorkshire/MCWB).  Story model inspired by
 [Choose Your Own Adventure](https://en.wikipedia.org/wiki/Choose_Your_Own_Adventure).
+

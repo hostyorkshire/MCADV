@@ -12,7 +12,7 @@ MCADV is designed to be lightweight and fast, enabling it to handle multiple con
 
 **Problem**: Importing heavy modules like `requests` takes time and memory, even when not used.
 
-**Solution**: 
+**Solution**:
 - `requests` module is only imported when LLM backends are first called
 - Offline mode (built-in story trees) starts instantly with zero import overhead
 - HTTP libraries are lazily loaded only when needed
@@ -48,7 +48,7 @@ class MeshCoreMessage:
 
 **Problem**: Frequent writes to SD card cause wear and slow down the bot.
 
-**Solution**: 
+**Solution**:
 - Session saves are batched with 5-second minimum interval
 - Sessions only saved when marked "dirty"
 - Force save on shutdown and critical operations (quit/end)
@@ -69,7 +69,7 @@ def _save_sessions(self, force: bool = False):
 
 **Problem**: Creating new TCP connections for each LLM API call adds latency.
 
-**Solution**: 
+**Solution**:
 - Reuse HTTP session object across all LLM calls
 - Maintain persistent connections to API endpoints
 - Lazy creation only when first LLM call is made
@@ -100,7 +100,7 @@ def _get_http_session(self):
 
 **Problem**: Repeated string concatenations can be slow.
 
-**Solution**: 
+**Solution**:
 - Pre-calculate strings before concatenation
 - Use single f-string operations instead of multiple joins
 - Cache formatted strings where possible
@@ -224,3 +224,4 @@ These optimizations make MCADV run smoothly on Raspberry Pi hardware, providing:
 - ✅ Support for many concurrent players
 
 Perfect for battery-powered, embedded, or always-on deployments.
+
