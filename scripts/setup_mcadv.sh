@@ -5,7 +5,8 @@
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_DIR"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -57,7 +58,7 @@ echo "Installing systemd service..."
 SERVICE_FILE="$SCRIPT_DIR/adventure_bot.service"
 INSTALLED_SERVICE="/etc/systemd/system/adventure_bot.service"
 CURRENT_USER="$(whoami)"
-INSTALL_DIR="$SCRIPT_DIR"
+INSTALL_DIR="$REPO_DIR"
 
 # Substitute real paths and username into the service file
 sed \
