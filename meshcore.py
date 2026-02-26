@@ -718,7 +718,7 @@ class MeshCore:
 
             # Heuristic 2: Old format would be invalid (channel_idx > 7), but V3 is valid
             # This handles cases where the old format interpretation doesn't make sense
-            elif old_channel_idx > _MAX_VALID_CHANNEL_IDX and (0 <= v3_channel_idx <= _MAX_VALID_CHANNEL_IDX):
+            elif old_channel_idx > _MAX_VALID_CHANNEL_IDX and 0 <= v3_channel_idx <= _MAX_VALID_CHANNEL_IDX:
                 use_v3_format = True
 
             # Heuristic 3: Reserved bytes are 0x00 AND valid channel_idx at position 4 = V3 format
@@ -747,9 +747,7 @@ class MeshCore:
         channel_idx = payload[1]
         # Validate channel_idx is in valid range (0-7)
         # Invalid indices indicate encrypted/garbled messages
-        if 0 <= channel_idx <= _MAX_VALID_CHANNEL_IDX:
-            pass
-        else:
+        if not (0 <= channel_idx <= _MAX_VALID_CHANNEL_IDX):
             return (None, None)
         text_bytes = payload[_OLD_FORMAT_HEADER_SIZE:]
         # Check if raw bytes are encrypted (mostly non-printable/control characters)
