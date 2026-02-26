@@ -28,7 +28,7 @@ Player → LoRa radio → Pi Zero (adventure_bot.py) → LLM or offline tree →
 ```bash
 git clone https://github.com/hostyorkshire/MCADV
 cd MCADV
-bash setup_mcadv.sh          # installs deps, creates service
+bash scripts/setup_mcadv.sh  # installs deps, creates service
 sudo systemctl start adventure_bot
 sudo journalctl -u adventure_bot -f
 ```
@@ -144,7 +144,7 @@ pip3 install --user -r requirements.txt
 python3 adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1 --debug
 
 # 4. Install as a service that starts on boot
-bash setup_mcadv.sh
+bash scripts/setup_mcadv.sh
 sudo systemctl start adventure_bot
 ```
 
@@ -187,7 +187,15 @@ logs/
   └── …
 tests/
   └── test_adventure_bot.py
+scripts/
+  ├── setup_mcadv.sh      ← installation script
+  └── adventure_bot.service
+config/
+  ├── .flake8             ← linting configuration
+  └── .pylintrc
 ```
+
+See [STRUCTURE.md](STRUCTURE.md) for detailed repository organization.
 
 ### Message flow
 
