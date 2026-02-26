@@ -254,13 +254,14 @@ From another device with LoRa MeshCore radio configured to the **#adventure** ch
    cd ~/MCADV
    source venv/bin/activate
    # Edit code, test changes
-   python3 adventure_bot.py --port /dev/ttyUSB0 --debug
+   # --channel-idx 1 = #adventure channel (REQUIRED)
+   python3 adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1 --debug
    ```
 
 2. **Test different models:**
    ```bash
    ollama pull llama3.2:3b
-   python3 adventure_bot.py --port /dev/ttyUSB0 --model llama3.2:3b
+   python3 adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1 --model llama3.2:3b
    ```
 
 3. **Monitor performance:**
@@ -1533,10 +1534,6 @@ sudo journalctl -u adventure_bot -f  # Watch for "Listening on channel 1..."
 - ✅ Channel is named "#adventure" or matches channel 1
 - ✅ Other devices on same channel can communicate
 - ❌ Bot will NOT respond on any other channel
-
-# Restart bot
-sudo systemctl restart adventure_bot
-```
 
 ### Issue: WiFi connection drops
 
