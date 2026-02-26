@@ -58,7 +58,7 @@ Player → LoRa → Pi Zero 2W (radio_gateway) → HTTP → Pi 5 (llm_server) �
 ```bash
 git clone https://github.com/hostyorkshire/MCADV
 cd MCADV
-bash scripts/setup_mcadv.sh  # installs deps, creates service
+bash scripts/setup_mcadv.sh  # creates venv, installs deps, creates service
 sudo systemctl start adventure_bot
 sudo journalctl -u adventure_bot -f
 ```
@@ -189,15 +189,16 @@ stories for any theme you type (`!adv pirate`, `!adv western`, etc.).
 
 ```bash
 # 1. Install OS dependencies
-sudo apt-get update && sudo apt-get install -y python3-pip python3-serial
+sudo apt-get update && sudo apt-get install -y python3-pip python3-serial python3-venv
 
 # 2. Clone and set up
 git clone https://github.com/hostyorkshire/MCADV
 cd MCADV
-pip3 install --user -r requirements.txt
+python3 -m venv venv
+venv/bin/pip install -r requirements.txt
 
 # 3. Run manually to test (Ctrl+C to stop)
-python3 adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1 --debug
+venv/bin/python3 adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1 --debug
 
 # 4. Install as a service that starts on boot
 bash scripts/setup_mcadv.sh

@@ -9,7 +9,7 @@ Type=simple
 User=pi
 WorkingDirectory=/home/pi/MCADV
 # Basic usage – offline story trees only, no LLM, listen on channel_idx 1
-ExecStart=/usr/bin/python3 /home/pi/MCADV/adventure_bot.py --baud 115200 --channel-idx 1 --announce
+ExecStart=/home/pi/MCADV/venv/bin/python3 /home/pi/MCADV/adventure_bot.py --baud 115200 --channel-idx 1 --announce
 # Automatically restart if the bot crashes
 Restart=on-failure
 RestartSec=10
@@ -23,31 +23,31 @@ StandardError=journal
 # Option A: Ollama on a machine on your LAN (recommended for Pi Zero)
 # Run Ollama on a separate PC/Pi with: ollama serve
 # then pull a small model: ollama pull llama3.2:1b
-# ExecStart=/usr/bin/python3 /home/pi/MCADV/adventure_bot.py \
+# ExecStart=/home/pi/MCADV/venv/bin/python3 /home/pi/MCADV/adventure_bot.py \
 #   --baud 115200 --channel-idx 1 --announce \
 #   --ollama-url http://192.168.1.50:11434 --model llama3.2:1b
 
 # Option B: Groq cloud API (free tier, needs internet)
 # Sign up at https://console.groq.com and get an API key
-# ExecStart=/usr/bin/python3 /home/pi/MCADV/adventure_bot.py \
+# ExecStart=/home/pi/MCADV/venv/bin/python3 /home/pi/MCADV/adventure_bot.py \
 #   --baud 115200 --channel-idx 1 --announce \
 #   --groq-key gsk_YOUR_KEY_HERE
 
 # Option C: OpenAI API (paid, needs internet)
-# ExecStart=/usr/bin/python3 /home/pi/MCADV/adventure_bot.py \
+# ExecStart=/home/pi/MCADV/venv/bin/python3 /home/pi/MCADV/adventure_bot.py \
 #   --baud 115200 --channel-idx 1 --announce \
 #   --openai-key sk_YOUR_KEY_HERE
 
 # -------------------------------------------------------------------------
 # GAMEPLAY MODE – add --shared to use one shared adventure per channel
 # -------------------------------------------------------------------------
-# ExecStart=/usr/bin/python3 /home/pi/MCADV/adventure_bot.py \
+# ExecStart=/home/pi/MCADV/venv/bin/python3 /home/pi/MCADV/adventure_bot.py \
 #   --baud 115200 --channel-idx 1 --announce --shared
 
 # -------------------------------------------------------------------------
 # DEBUG – add -d to see verbose output in journalctl
 # -------------------------------------------------------------------------
-# ExecStart=/usr/bin/python3 /home/pi/MCADV/adventure_bot.py \
+# ExecStart=/home/pi/MCADV/venv/bin/python3 /home/pi/MCADV/adventure_bot.py \
 #   --baud 115200 --channel-idx 1 -d
 
 [Install]

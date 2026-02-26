@@ -25,9 +25,15 @@ if [ "$EUID" -eq 0 ]; then
     exit 1
 fi
 
-# Install Python dependencies
+# Create Python virtual environment
+echo "Creating Python virtual environment..."
+python3 -m venv "$REPO_DIR/venv"
+echo -e "${GREEN}✓ Virtual environment created at $REPO_DIR/venv${NC}"
+echo ""
+
+# Install Python dependencies into the virtual environment
 echo "Installing Python dependencies..."
-pip3 install --user -r requirements.txt
+"$REPO_DIR/venv/bin/pip" install -r requirements.txt
 echo -e "${GREEN}✓ Dependencies installed${NC}"
 echo ""
 
