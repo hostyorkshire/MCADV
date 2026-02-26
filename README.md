@@ -15,6 +15,31 @@ Players interact on a dedicated MeshCore channel. Every message fits within
 
 ---
 
+## What is Choose Your Own Adventure?
+
+**Choose Your Own Adventure** (CYOA) is an interactive storytelling format that
+puts you in control of the narrative. Unlike traditional stories where you're a
+passive reader, CYOA books let you make decisions that change the plot.
+
+The format was popularized by the **Choose Your Own Adventure** book series
+created by Edward Packard in the 1970s and published by Bantam Books starting
+in 1979. These books became a cultural phenomenon, selling over 250 million
+copies worldwide and introducing millions of readers to interactive fiction.
+
+### How CYOA works:
+
+1. **You read a scene** – The story sets up a situation or dilemma
+2. **You make a choice** – Usually 2-3 options like "Turn left" or "Investigate the noise"
+3. **The story branches** – Your choice leads to a new scene with new consequences
+4. **Multiple endings** – Different paths lead to different outcomes (some triumphant, some tragic)
+
+This format transformed reading from a linear experience into an adventure where
+**your decisions matter**. MCADV brings this classic interactive storytelling
+format to LoRa mesh networks, letting you and your friends experience branching
+adventures over the radio.
+
+---
+
 ## How it works
 
 ### Standalone Mode (Single Pi)
