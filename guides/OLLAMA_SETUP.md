@@ -429,6 +429,118 @@ Different models have different trade-offs between speed, quality, and resource 
 3. **Upgrade if needed** - Move to larger model if Pi can handle it
 4. **Balance speed vs quality** - Faster responses = better UX on LoRa
 
+### Storage Capacity Planning
+
+**Understanding your storage constraints:**
+
+Ollama models are relatively small compared to modern storage capacities. Here's what you need to know:
+
+**Typical Storage Scenarios:**
+
+| Available Storage | What You Can Do | Recommended Setup |
+|-------------------|-----------------|-------------------|
+| **32-64 GB** | Limited capacity | 1-2 small models (llama3.2:1b + tinyllama) |
+| **128 GB** | Comfortable | 3-4 models of various sizes |
+| **239 GB** | **Plenty of space!** | All recommended models + room for growth |
+| **500+ GB** | Extensive | Full model library, multiple versions |
+
+**For 239 GB SSD (Your Scenario):**
+
+With 239 GB of storage, you have MORE than enough space for any CYOA bot deployment. Here's the breakdown:
+
+```
+Total Space:        239 GB
+OS + System:        -20 GB (typical)
+MCADV Bot:          -0.1 GB
+Logs & Data:        -1 GB
+Available for LLM:  ~218 GB
+```
+
+**What fits comfortably:**
+
+1. **Conservative Setup** (~8 GB used):
+   - `llama3.2:1b` (1.3 GB) - Fast, good quality
+   - `llama3.2:3b` (3.2 GB) - Better quality, slower
+   - `tinyllama` (638 MB) - Backup/testing
+   - **Remaining:** ~210 GB free
+
+2. **Balanced Setup** (~15 GB used):
+   - `llama3.2:1b` (1.3 GB) - Production default
+   - `llama3.2:3b` (3.2 GB) - High quality option
+   - `llama3:8b` (4.7 GB) - Best quality (if hardware supports)
+   - `phi3:mini` (2.3 GB) - Alternative engine
+   - `mistral:7b` (4.1 GB) - Another excellent option
+   - **Remaining:** ~204 GB free
+
+3. **Comprehensive Setup** (~25 GB used):
+   - All models from Balanced Setup
+   - `qwen2.5:7b` (4.7 GB) - Alternative 7B model
+   - `gemma2:9b` (5.4 GB) - Google's model
+   - Multiple model versions/quantizations
+   - **Remaining:** ~194 GB free
+
+**Recommendation for 239 GB:**
+
+Since you have abundant storage, we recommend the **Balanced Setup**:
+
+```bash
+# Install multiple models for flexibility
+ollama pull llama3.2:1b    # 1.3 GB - Fast daily driver
+ollama pull llama3.2:3b    # 3.2 GB - Better quality
+ollama pull phi3:mini      # 2.3 GB - Microsoft's efficient model
+```
+
+**Why multiple models?**
+- **Development/Testing:** Use `llama3.2:1b` for fast iteration
+- **Production:** Use `llama3.2:3b` for better story quality
+- **Experimentation:** Try `phi3:mini` for different narrative styles
+- **Failover:** If one model has issues, switch to another
+- **Theme-specific:** Use different models for different adventure themes
+
+**Storage is NOT your bottleneck:**
+
+With 239 GB, focus on these factors instead:
+1. **RAM capacity** - Limits which models can run simultaneously
+2. **CPU/GPU speed** - Determines response time
+3. **Network bandwidth** - If using distributed setup
+
+**Bottom Line:**
+- ✅ 239 GB = Plenty of space for any model combination
+- ✅ You can install 20+ models and still have room
+- ✅ Storage won't be a limiting factor
+- ⚠️ RAM and CPU will be your real constraints
+
+**Best Model for CYOA Bot with 239 GB Storage:**
+
+**For Raspberry Pi 4 or Pi 5 (4GB or 8GB RAM):**
+```bash
+ollama pull llama3.2:1b
+# Storage used: 1.3 GB
+# Remaining: ~237 GB
+# Speed: Fast (2-3s per scene generation)
+# Quality: Good - perfect for CYOA
+# Note: Works on both Pi 4 4GB/8GB and Pi 5 4GB/8GB
+```
+
+**For more powerful hardware (Jetson/PC with 8GB+ RAM):**
+```bash
+ollama pull llama3.2:3b
+# Storage used: 3.2 GB
+# Remaining: ~236 GB
+# Speed: Medium (4-6s per scene generation)
+# Quality: Very good - excellent CYOA narratives
+# Note: Best on Pi 5 8GB, Jetson, or desktop PC
+```
+
+**Pro Tip:** Install both and switch based on your needs:
+```bash
+# Fast mode for testing
+python3 adventure_bot.py --model llama3.2:1b
+
+# Quality mode for production
+python3 adventure_bot.py --model llama3.2:3b
+```
+
 ---
 
 ## Configuration Examples
