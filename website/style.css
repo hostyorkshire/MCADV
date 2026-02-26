@@ -146,6 +146,27 @@ body::before {
     position: relative;
 }
 
+/* Getting Started section - prominent styling */
+.proclamation.getting-started {
+    background: linear-gradient(135deg, #2d2416 0%, #3a2d1e 100%);
+    border: 3px solid var(--text-gold);
+    box-shadow: 
+        0 8px 20px rgba(0, 0, 0, 0.8),
+        0 0 30px rgba(212, 175, 55, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.important-notice {
+    font-size: 1.2em !important;
+    text-align: center !important;
+    text-indent: 0 !important;
+    color: var(--text-light) !important;
+    padding: 10px 20px;
+    background: rgba(139, 115, 85, 0.1);
+    border-radius: 4px;
+    border-left: 4px solid var(--text-gold);
+}
+
 .proclamation::before {
     content: '';
     position: absolute;
