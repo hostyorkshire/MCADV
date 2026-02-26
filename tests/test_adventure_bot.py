@@ -541,6 +541,8 @@ class TestSessionPersistence(unittest.TestCase):
                 # Restore real _save_sessions so data actually hits disk
                 bot._save_sessions = AdventureBot._save_sessions.__get__(bot, AdventureBot)
                 bot._update_session("Alice", {"status": "active", "theme": "scifi"})
+                # Force save to disk (batched saves need explicit flush for testing)
+                bot._save_sessions(force=True)
 
                 # A fresh bot should reload Alice's session from disk
                 bot2 = make_bot()

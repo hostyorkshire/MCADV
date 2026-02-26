@@ -55,6 +55,9 @@ except ImportError:
 
 class MeshCoreMessage:
     """Represents a message in the MeshCore network"""
+    
+    # Use __slots__ to reduce memory footprint - important for Pi with limited RAM
+    __slots__ = ('sender', 'content', 'message_type', 'timestamp', 'channel', 'channel_idx')
 
     def __init__(
         self,
