@@ -20,7 +20,7 @@ Gameplay modes:
   Per-user (default) - each player has their own independent adventure
   Shared (--shared)  - one adventure per channel; anyone can advance the story
 
-Messages are kept under 200 characters for LoRa compatibility.
+Messages longer than 200 characters are split across multiple LoRa transmissions.
 """
 
 import argparse
@@ -59,6 +59,11 @@ def _ensure_requests():
 # The MeshCore binary protocol frame fits up to ~230 bytes of text payload,
 # but keeping to 200 leaves comfortable headroom for node-name prefixes and
 # multi-hop path overhead.
+# 
+# Note: When messages are transmitted on a channel, MeshCore firmware prepends
+# the node_id in the format "node_id: content". For this bot with node_id="MCADV",
+# the overhead is 7 characters ("MCADV: "). The _send_reply() method automatically
+# accounts for this overhead when splitting long messages.
 # ---------------------------------------------------------------------------
 MAX_MSG_LEN = 200
 
@@ -400,10 +405,66 @@ class AdventureBot:
         return message.sender
 
     def _send_reply(self, text: str, channel_idx: int) -> None:
-        """Send a reply via MeshCore, hard-capping at MAX_MSG_LEN characters."""
-        if len(text) > MAX_MSG_LEN:
-            text = text[: MAX_MSG_LEN - 1] + "…"
-        self.mesh.send_message(text, "text", channel_idx=channel_idx)
+        """
+        Send a reply via MeshCore, splitting into multiple messages if needed.
+        
+        Messages longer than the effective payload size are split across multiple
+        LoRa transmissions with markers (1/N, 2/N, etc.) to indicate the part number.
+        
+        The effective payload size accounts for:
+        - MAX_MSG_LEN (200 chars) - the LoRa payload limit
+        - Node name prefix overhead (e.g., "MCADV: " = 7 chars)
+        - Part indicator suffix (dynamically calculated based on number of parts)
+        """
+        # Calculate overhead from the node_id prefix added by MeshCore firmware
+        # Format is "node_id: content", so overhead is len(node_id) + 2
+        node_name_overhead = len(self.mesh.node_id) + 2  # +2 for ": "
+        
+        # Available space for our content in a single message
+        effective_max_len = MAX_MSG_LEN - node_name_overhead
+        
+        # Check if message fits in a single transmission
+        if len(text) <= effective_max_len:
+            self.mesh.send_message(text, "text", channel_idx=channel_idx)
+            return
+        
+        # Split message into multiple parts
+        # First, estimate the number of parts needed to calculate suffix space
+        # Start with worst case assumption of " (999/999)" = 11 chars for very long messages
+        suffix_space = 11
+        chunk_size = effective_max_len - suffix_space
+        
+        # Calculate actual number of chunks needed
+        chunks = []
+        remaining = text
+        while remaining:
+            chunks.append(remaining[:chunk_size])
+            remaining = remaining[chunk_size:]
+        
+        total_parts = len(chunks)
+        
+        # If we have fewer parts than expected, we can reclaim some space
+        # e.g., if total_parts < 100, we only need " (99/99)" = 8 chars
+        if total_parts < 100:
+            actual_suffix_space = len(f" ({total_parts}/{total_parts})")
+            if actual_suffix_space < suffix_space:
+                # Recalculate with the actual suffix space
+                chunk_size = effective_max_len - actual_suffix_space
+                chunks = []
+                remaining = text
+                while remaining:
+                    chunks.append(remaining[:chunk_size])
+                    remaining = remaining[chunk_size:]
+                total_parts = len(chunks)
+        
+        # Send each chunk with part indicator
+        for i, chunk in enumerate(chunks, 1):
+            msg = f"{chunk} ({i}/{total_parts})"
+            self.mesh.send_message(msg, "text", channel_idx=channel_idx)
+            # Small delay between messages to avoid overwhelming the LoRa radio.
+            # This is intentionally blocking since messages must be sent sequentially.
+            if i < total_parts:
+                time.sleep(0.1)
 
     # ------------------------------------------------------------------
     # Session management
@@ -489,21 +550,15 @@ class AdventureBot:
 
     def _format_story_message(self, text: str, choices: List[str]) -> str:
         """
-        Combine story text and labelled choices into a single LoRa message.
+        Combine story text and labelled choices into a single message.
 
         Format:  <text>\\n1:Choice A 2:Choice B 3:Choice C
 
         Terminal nodes (empty choices) return just the text.
-        The result is capped at MAX_MSG_LEN characters.
+        Long messages will be split by _send_reply() when transmitted.
         """
         if not choices:
-            return text[:MAX_MSG_LEN]
-        # Pre-calculated to avoid repeated string operations  
-        choices_str = " ".join(f"{i + 1}:{c}" for i, c in enumerate(choices))
-        # Single concatenation is faster than multiple operations
-        result = f"{text}\n{choices_str}"
-        return result[:MAX_MSG_LEN]
-
+          
     # ------------------------------------------------------------------
     # LLM backends
     # ------------------------------------------------------------------
@@ -692,7 +747,7 @@ class AdventureBot:
                 "theme": theme,
                 "status": "finished" if is_terminal else "active",
             })
-            return story[:MAX_MSG_LEN]
+            return story
 
         # All LLM backends unavailable – use built-in story tree
         self.logger.info(f"LLM unavailable, using offline story tree for session {key!r}")

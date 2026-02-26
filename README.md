@@ -3,16 +3,6 @@
 An AI-powered **Choose Your Own Adventure** bot for the
 [MeshCore](https://github.com/meshcore-dev/MeshCore) LoRa mesh radio network.
 
-**Two Deployment Modes:**
-
-1. **Standalone** – Run everything on one device (Pi 3B+, Pi 4, Pi 5)
-2. **Distributed** – Split between two devices:
-   - **Pi Zero 2W**: Handles LoRa radio (lightweight, low power)
-   - **Pi 5 / Jetson / PC**: Handles LLM processing (compute-intensive)
-
-Players interact on a dedicated MeshCore channel. Every message fits within
-**200 characters** to respect LoRa's small payload budget.
-
 ---
 
 ## What is Choose Your Own Adventure?
