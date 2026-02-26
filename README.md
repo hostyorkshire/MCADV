@@ -92,7 +92,7 @@ LoRa radio communication but needs a partner for AI processing.
 - **Pi 5 8GB** ($80) - LLM server with Ollama
 - **Total cost:** ~$170 (with accessories)
 
-See **[HARDWARE.md](HARDWARE.md)** for complete hardware recommendations including:
+See **[HARDWARE.md](docs/HARDWARE.md)** for complete hardware recommendations including:
 - Raspberry Pi 5 (budget option)
 - NVIDIA Jetson Orin Nano (best performance)
 - Mini PC / NUC (maximum power)
@@ -121,7 +121,7 @@ The bot tries each backend in order and falls back to the next if unavailable.
 
 #### Choosing an LLM backend
 
-**For Pi Zero 2W:** Use the distributed architecture (see HARDWARE.md)
+**For Pi Zero 2W:** Use the distributed architecture (see docs/HARDWARE.md)
 - Run `llm_server.py` on a Pi 5 or more powerful device
 - Run `radio_gateway.py` on the Pi Zero 2W
 - Connect via local network (WiFi or Ethernet)
@@ -251,7 +251,7 @@ config/
   └── .pylintrc
 ```
 
-See [STRUCTURE.md](STRUCTURE.md) for detailed repository organization.
+See [STRUCTURE.md](docs/STRUCTURE.md) for detailed repository organization.
 
 ### Message flow
 
@@ -284,7 +284,7 @@ MCADV is **optimized for Raspberry Pi** hardware with:
 - 💿 Reduced SD card wear (batched I/O)
 - 🔌 HTTP connection pooling for faster LLM calls
 
-See [PERFORMANCE.md](PERFORMANCE.md) for details on optimizations and benchmarks.
+See [PERFORMANCE.md](docs/PERFORMANCE.md) for details on optimizations and benchmarks.
 
 ### Distributed Mode (Pi Zero 2W + Partner)
 
@@ -309,7 +309,7 @@ See [PERFORMANCE.md](PERFORMANCE.md) for details on optimizations and benchmarks
 | Pi Zero + Jetson | <10ms | 500ms-2s | 500ms-2s | ~25W |
 | Pi 4 standalone | <50ms | 3-8s | 3-8s | ~8W |
 
-See [HARDWARE.md](HARDWARE.md) for complete hardware guide and setup instructions.
+See [HARDWARE.md](docs/HARDWARE.md) for complete hardware guide and setup instructions.
 
 ---
 
