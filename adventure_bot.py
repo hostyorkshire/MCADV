@@ -338,6 +338,13 @@ VALID_THEMES: List[str] = list(FALLBACK_STORIES.keys())
 # ---------------------------------------------------------------------------
 
 
+class _TerminalMeshStub:
+    """Stub mesh object for terminal mode"""
+    def __init__(self):
+        self.node_id = "MCADV"
+        self.send_message = lambda *args, **kwargs: None
+
+
 class AdventureBot:
     """
     AI-powered Choose Your Own Adventure bot for MeshCore LoRa.
@@ -352,14 +359,14 @@ class AdventureBot:
         port: Optional[str] = None,
         baud: int = 115200,
         debug: bool = False,
-        allowed_channel_idx: Optional[int] = None,
+        allowed_channel: Optional[str] = None,
         announce: bool = False,
         ollama_url: str = "http://localhost:11434",
         model: str = "llama3.2:1b",
         terminal: bool = False,
         distributed_mode: bool = False,
     ):
-        self.allowed_channel_idx = allowed_channel_idx
+        self.allowed_channel = allowed_channel
         self.announce = announce
         self.ollama_url = ollama_url.rstrip("/")
         self.model = model
@@ -390,8 +397,15 @@ class AdventureBot:
                 baud_rate=baud,
             )
             self.mesh.register_handler("text", self.handle_message)
+            # Set channel filtering if channel name is provided
+            if self.allowed_channel is not None:
+                self.mesh.set_channel_filter(self.allowed_channel)
+        elif terminal:
+            # Terminal mode needs a stub mesh object for send_message mocking
+            self.mesh = _TerminalMeshStub()
         else:
-            self.mesh = None  # No direct mesh connection in terminal or distributed mode
+            # Distributed mode has no mesh connection
+            self.mesh = None
 
     # ------------------------------------------------------------------
     # Helpers
@@ -694,9 +708,8 @@ class AdventureBot:
         channel_idx = message.channel_idx if message.channel_idx is not None else 0
         content_lower = content.lower()
 
-        # Drop messages from channels we are not configured to serve
-        if self.allowed_channel_idx is not None and channel_idx != self.allowed_channel_idx:
-            return None
+        # Channel filtering is handled by meshcore.py when allowed_channel is set
+        # via set_channel_filter() during initialization
 
         self._expire_sessions()
         key = self._session_key(message)
@@ -771,8 +784,8 @@ class AdventureBot:
         self.mesh.start()
         self._running = True
 
-        if self.allowed_channel_idx is not None:
-            msg = f"MCADV running on channel_idx={self.allowed_channel_idx}."
+        if self.allowed_channel is not None:
+            msg = f"MCADV running on channel '{self.allowed_channel}'."
         else:
             msg = "MCADV running on all channels. Type !adv to start."
         print(msg)
@@ -781,8 +794,10 @@ class AdventureBot:
 
         last_announce = time.time()
         if self.announce:
-            announce_idx = self.allowed_channel_idx if self.allowed_channel_idx is not None else 0
-            self.mesh.send_message(ANNOUNCE_MESSAGE, "text", channel_idx=announce_idx)
+            if self.allowed_channel is not None:
+                self.mesh.send_message(ANNOUNCE_MESSAGE, "text", channel=self.allowed_channel)
+            else:
+                self.mesh.send_message(ANNOUNCE_MESSAGE, "text", channel_idx=0)
 
         try:
             while self._running:
@@ -790,8 +805,10 @@ class AdventureBot:
                 # Check if sessions need saving (batched internally with 5s minimum interval)
                 self._save_sessions()
                 if self.announce and (time.time() - last_announce >= ANNOUNCE_INTERVAL):
-                    announce_idx = self.allowed_channel_idx if self.allowed_channel_idx is not None else 0
-                    self.mesh.send_message(ANNOUNCE_MESSAGE, "text", channel_idx=announce_idx)
+                    if self.allowed_channel is not None:
+                        self.mesh.send_message(ANNOUNCE_MESSAGE, "text", channel=self.allowed_channel)
+                    else:
+                        self.mesh.send_message(ANNOUNCE_MESSAGE, "text", channel_idx=0)
                     last_announce = time.time()
         except KeyboardInterrupt:
             print("\nStopping...")
@@ -980,7 +997,7 @@ Examples:
   python adventure_bot.py --terminal
 
   # Radio mode (requires LoRa hardware):
-  python adventure_bot.py -p /dev/ttyUSB0 --channel-idx 1
+  python adventure_bot.py -p /dev/ttyUSB0 --channel adventure
   python adventure_bot.py -p /dev/ttyUSB0 --ollama-url http://192.168.1.50:11434
   python adventure_bot.py -p /dev/ttyUSB0 --announce
 """,
@@ -997,9 +1014,9 @@ Examples:
     )
     parser.add_argument(
         "-c",
-        "--channel-idx",
-        type=int,
-        help="Only respond to messages from this channel index (e.g. 1 for #adventure)",
+        "--channel",
+        type=str,
+        help="Only respond to messages from this channel name (e.g. 'adventure'). Channel names are consistent across devices.",
     )
     parser.add_argument(
         "--ollama-url",
@@ -1018,7 +1035,7 @@ Examples:
         port=args.port,
         baud=args.baud,
         debug=args.debug,
-        allowed_channel_idx=args.channel_idx,
+        allowed_channel=args.channel,
         announce=args.announce,
         ollama_url=args.ollama_url,
         model=args.model,
