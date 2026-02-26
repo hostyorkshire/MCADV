@@ -173,7 +173,7 @@ body::before {
     text-align: justify;
     text-indent: 2em;
     color: var(--text-light);
-    font-size: 1.05em;
+    font-size: 1.15em;
 }
 
 .scroll-text p:first-child::first-letter {
