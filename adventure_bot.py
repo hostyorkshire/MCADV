@@ -365,6 +365,8 @@ class AdventureBot:
         model: str = "llama3.2:1b",
         terminal: bool = False,
         distributed_mode: bool = False,
+        http_host: str = "0.0.0.0",
+        http_port: int = 5000,
     ):
         self.allowed_channel = allowed_channel
         self.announce = announce
@@ -372,6 +374,8 @@ class AdventureBot:
         self.model = model
         self.terminal = terminal
         self.distributed_mode = distributed_mode
+        self.http_host = http_host
+        self.http_port = http_port
 
         self._running = False
 
