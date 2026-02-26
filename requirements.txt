@@ -1,3 +1,20 @@
+# Core dependencies for MCADV - MeshCore Adventure Bot
+# Install with: pip install -r requirements.txt
+
+# HTTP client for LLM API calls (Ollama, Groq, OpenAI)
 requests>=2.31.0
+
+# Serial communication for MeshCore radio
 pyserial>=3.5
+
+# Web server for distributed mode (bot server component)
 flask>=2.3.0
+
+# Standard library modules (included with Python, listed for reference):
+# - argparse: Command-line argument parsing
+# - json: JSON encoding/decoding
+# - logging: Logging functionality
+# - threading: Multi-threading support
+# - time: Time-related functions
+# - pathlib: Object-oriented filesystem paths
+# - typing: Type hints support
