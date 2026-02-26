@@ -6,11 +6,18 @@ AI-powered Choose Your Own Adventure bot for LoRa mesh networks.
 This bot runs in distributed mode as an HTTP server. It receives messages
 from a radio gateway (radio_gateway.py) which handles the LoRa communication.
 
+COLLABORATIVE STORYTELLING:
+  Stories are SHARED by all users in the #adventures channel. When one user
+  makes a choice, the story progresses for everyone. It's a collaborative
+  effort to reach the end without being killed. The story continues until
+  someone resets it with !reset.
+
 Commands (sent via the radio gateway):
   !adv [theme]   - Start a new adventure (themes: fantasy, scifi, horror)
   !start [theme] - Alias for !adv
-  1 / 2 / 3      - Make a choice in your current adventure
-  !quit / !end   - End your current adventure
+  1 / 2 / 3      - Make a choice (affects the shared story for everyone)
+  !reset         - Reset the current story (anyone can reset)
+  !quit / !end   - Alias for !reset
   !help          - Show available commands
 
 LLM backend:
@@ -64,6 +71,11 @@ MAX_MSG_LEN = 200
 # ---------------------------------------------------------------------------
 SESSION_FILE = Path(__file__).parent / "logs" / "sessions.json"
 SESSION_EXPIRY_SECONDS = 7200  # 2 hours of inactivity
+
+# ---------------------------------------------------------------------------
+# Collaborative mode messaging
+# ---------------------------------------------------------------------------
+COLLABORATIVE_MODE_TEXT = "collaborative adventure"
 
 # ---------------------------------------------------------------------------
 # LLM prompt
@@ -334,6 +346,11 @@ class AdventureBot:
     Runs as an HTTP server in distributed mode, receiving messages from a radio
     gateway that handles LoRa communication. Story generation is attempted via
     Ollama before falling back to built-in offline story trees.
+
+    COLLABORATIVE MODE:
+    Stories are shared across all users in a channel. All users participate in
+    the same story, making choices together to reach the end. The story continues
+    until someone resets it with !reset, then a new collaborative adventure begins.
     """
 
     def __init__(
@@ -369,8 +386,15 @@ class AdventureBot:
     # ------------------------------------------------------------------
 
     def _session_key(self, message: MeshCoreMessage) -> str:
-        """Return the session key: the message sender."""
-        return message.sender
+        """
+        Return the session key: the channel index.
+        
+        In collaborative mode, all users on the same channel share the same story.
+        This allows multiple users to interact with and progress the same adventure.
+        """
+        # Use channel_idx if available, otherwise default to 0
+        channel_idx = message.channel_idx if message.channel_idx is not None else 0
+        return f"channel_{channel_idx}"
 
     # ------------------------------------------------------------------
     # Session management
@@ -606,21 +630,25 @@ class AdventureBot:
 
         # ---- !help -------------------------------------------------------
         if content_lower in ("!help", "help"):
-            response = "CYOA Bot: !adv[theme] start, 1/2/3 choose, !quit end. Themes: fantasy scifi horror"
+            response = "CYOA Bot (Collaborative): !adv[theme] start, 1/2/3 choose together, !reset to restart. Themes: fantasy scifi horror"
 
         # ---- !adv / !start [theme] ---------------------------------------
         elif content_lower.startswith(("!adv", "!start")):
             parts = content.split(maxsplit=1)
             raw_theme = parts[1].strip().lower() if len(parts) > 1 else "fantasy"
             theme = raw_theme if raw_theme in VALID_THEMES else "fantasy"
-            self.logger.info(f"New adventure for {key!r}: theme={theme!r}")
+            self.logger.info(f"New adventure for {key!r}: theme={theme!r} started by {message.sender}")
             self._update_session(key, {"status": "active", "node": "start", "history": [], "theme": theme})
             response = self._generate_story(key, choice=None, theme=theme)
 
-        # ---- !quit / !end ------------------------------------------------
-        elif content_lower in ("!quit", "!end", "!stop"):
-            self._clear_session(key)
-            response = "Adventure ended. Type !adv to start a new one."
+        # ---- !reset / !quit / !end ----------------------------------------
+        elif content_lower in ("!quit", "!end", "!stop", "!reset"):
+            session = self._get_session(key)
+            if session and session.get("status") == "active":
+                self._clear_session(key)
+                response = f"Story reset by {message.sender}. Type !adv to start a new {COLLABORATIVE_MODE_TEXT}."
+            else:
+                response = f"No active story. Type !adv to start a new {COLLABORATIVE_MODE_TEXT}."
 
         # ---- choice: 1, 2, or 3 ------------------------------------------
         elif content in ("1", "2", "3"):
@@ -629,7 +657,7 @@ class AdventureBot:
                 response = "No active adventure. Type !adv to start."
             else:
                 theme = session.get("theme", "fantasy")
-                self.logger.info(f"Session {key!r} chose option {content}")
+                self.logger.info(f"Session {key!r}: {message.sender} chose option {content}")
                 response = self._generate_story(key, choice=content, theme=theme)
                 if self._get_session(key).get("status") == "finished":
                     self._clear_session(key)

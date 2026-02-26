@@ -60,10 +60,19 @@ def make_msg(sender: str = "Alice", content: str = "!adv", channel_idx: int = 1)
     """
     Create a MeshCoreMessage for testing.
     
-    Note: channel_idx is part of the MeshCoreMessage structure (used by radio gateway)
-    but is not used by the bot for routing in distributed mode.
+    In collaborative mode, all users on the same channel share the same story.
+    The channel_idx determines which story session is used.
     """
     return MeshCoreMessage(sender=sender, content=content, channel_idx=channel_idx)
+
+
+def get_session_key(channel_idx: int = 1) -> str:
+    """
+    Get the session key for a given channel in collaborative mode.
+    
+    Helper function for tests to get the correct session key based on channel.
+    """
+    return f"channel_{channel_idx}"
 
 
 # ---------------------------------------------------------------------------
@@ -143,10 +152,25 @@ class TestSessionManagement(unittest.TestCase):
 
 
 class TestSessionKey(unittest.TestCase):
-    def test_key_is_sender(self):
+    def test_key_is_channel(self):
+        """Test that session key is based on channel, not sender (collaborative mode)."""
         bot = make_bot()
         msg = make_msg(sender="Alice", channel_idx=1)
-        self.assertEqual(bot._session_key(msg), "Alice")
+        self.assertEqual(bot._session_key(msg), "channel_1")
+    
+    def test_different_users_same_channel_same_key(self):
+        """Test that different users on same channel share the same session key."""
+        bot = make_bot()
+        msg1 = make_msg(sender="Alice", channel_idx=1)
+        msg2 = make_msg(sender="Bob", channel_idx=1)
+        self.assertEqual(bot._session_key(msg1), bot._session_key(msg2))
+    
+    def test_different_channels_different_keys(self):
+        """Test that different channels have different session keys."""
+        bot = make_bot()
+        msg1 = make_msg(sender="Alice", channel_idx=1)
+        msg2 = make_msg(sender="Alice", channel_idx=2)
+        self.assertNotEqual(bot._session_key(msg1), bot._session_key(msg2))
 
 
 # ---------------------------------------------------------------------------
@@ -245,29 +269,29 @@ class TestHandleMessage(unittest.TestCase):
 
     def test_adv_starts_fantasy_by_default(self):
         reply = self.bot.handle_message(make_msg(content="!adv"))
-        s = self.bot._get_session("Alice")
+        s = self.bot._get_session(get_session_key(1))
         self.assertEqual(s["theme"], "fantasy")
         self.assertEqual(s["status"], "active")
         self.assertIsNotNone(reply)
 
     def test_adv_with_explicit_theme(self):
         reply = self.bot.handle_message(make_msg(content="!adv scifi"))
-        self.assertEqual(self.bot._get_session("Alice")["theme"], "scifi")
+        self.assertEqual(self.bot._get_session(get_session_key(1))["theme"], "scifi")
         self.assertIsNotNone(reply)
 
     def test_adv_with_horror_theme(self):
         reply = self.bot.handle_message(make_msg(content="!adv horror"))
-        self.assertEqual(self.bot._get_session("Alice")["theme"], "horror")
+        self.assertEqual(self.bot._get_session(get_session_key(1))["theme"], "horror")
         self.assertIsNotNone(reply)
 
     def test_adv_unknown_theme_defaults_to_fantasy(self):
         reply = self.bot.handle_message(make_msg(content="!adv unicorns"))
-        self.assertEqual(self.bot._get_session("Alice")["theme"], "fantasy")
+        self.assertEqual(self.bot._get_session(get_session_key(1))["theme"], "fantasy")
         self.assertIsNotNone(reply)
 
     def test_start_alias(self):
         reply = self.bot.handle_message(make_msg(content="!start horror"))
-        self.assertEqual(self.bot._get_session("Alice")["theme"], "horror")
+        self.assertEqual(self.bot._get_session(get_session_key(1))["theme"], "horror")
         self.assertIsNotNone(reply)
 
     # -- choices --
@@ -277,26 +301,29 @@ class TestHandleMessage(unittest.TestCase):
         self.assertIn("!adv", reply)
 
     def test_choice_with_active_session_advances_story(self):
-        self.bot._update_session("Alice", {"status": "active", "node": "start", "theme": "fantasy", "history": []})
+        key = get_session_key(1)
+        self.bot._update_session(key, {"status": "active", "node": "start", "theme": "fantasy", "history": []})
         reply = self.bot.handle_message(make_msg(content="1"))
         self.assertIsNotNone(reply)
         # Session should still be tracked
-        self.assertIn("Alice", self.bot._sessions)
+        self.assertIn(key, self.bot._sessions)
 
     def test_choice_on_terminal_node_clears_session(self):
         # road_pay is terminal; node "road" -> choice "1" -> "road_pay"
-        self.bot._update_session("Alice", {"status": "active", "node": "road", "theme": "fantasy", "history": []})
+        key = get_session_key(1)
+        self.bot._update_session(key, {"status": "active", "node": "road", "theme": "fantasy", "history": []})
         reply = self.bot.handle_message(make_msg(content="1"))
         self.assertIsNotNone(reply)
         # Session should be gone after reaching THE END
-        self.assertEqual(self.bot._get_session("Alice"), {})
+        self.assertEqual(self.bot._get_session(key), {})
 
-    # -- !quit --
+    # -- !quit / !reset --
 
     def test_quit_clears_session(self):
-        self.bot._update_session("Alice", {"status": "active", "theme": "fantasy"})
+        key = get_session_key(1)
+        self.bot._update_session(key, {"status": "active", "theme": "fantasy"})
         reply = self.bot.handle_message(make_msg(content="!quit"))
-        self.assertEqual(self.bot._get_session("Alice"), {})
+        self.assertEqual(self.bot._get_session(key), {})
         self.assertIsNotNone(reply)
 
     def test_quit_reply_mentions_adv(self):
@@ -304,9 +331,10 @@ class TestHandleMessage(unittest.TestCase):
         self.assertIn("!adv", reply)
 
     def test_end_alias(self):
-        self.bot._update_session("Alice", {"status": "active"})
+        key = get_session_key(1)
+        self.bot._update_session(key, {"status": "active"})
         reply = self.bot.handle_message(make_msg(content="!end"))
-        self.assertEqual(self.bot._get_session("Alice"), {})
+        self.assertEqual(self.bot._get_session(key), {})
         self.assertIsNotNone(reply)
 
     # -- !status --
@@ -316,7 +344,8 @@ class TestHandleMessage(unittest.TestCase):
         self.assertIn("!adv", reply)
 
     def test_status_active_session(self):
-        self.bot._update_session("Alice", {"status": "active", "theme": "scifi"})
+        key = get_session_key(1)
+        self.bot._update_session(key, {"status": "active", "theme": "scifi"})
         reply = self.bot.handle_message(make_msg(content="!status"))
         self.assertIn("scifi", reply)
 
@@ -328,6 +357,79 @@ class TestHandleMessage(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Collaborative storytelling
+# ---------------------------------------------------------------------------
+
+
+class TestCollaborativeMode(unittest.TestCase):
+    """Test collaborative storytelling where multiple users share the same story."""
+    
+    def setUp(self):
+        self.bot = make_bot()
+        # Always use offline fallback so tests don't need network
+        self.bot._call_ollama = MagicMock(return_value=None)
+    
+    def test_different_users_same_channel_share_story(self):
+        """Test that Alice and Bob on same channel see the same story."""
+        # Alice starts the adventure
+        reply1 = self.bot.handle_message(make_msg(sender="Alice", content="!adv fantasy", channel_idx=1))
+        self.assertIsNotNone(reply1)
+        
+        # Bob makes a choice - should affect the shared story
+        reply2 = self.bot.handle_message(make_msg(sender="Bob", content="1", channel_idx=1))
+        self.assertIsNotNone(reply2)
+        
+        # Verify both users share the same session
+        key = get_session_key(1)
+        session = self.bot._get_session(key)
+        self.assertEqual(session["status"], "active")
+        # The node should have advanced from "start" after Bob's choice
+        self.assertNotEqual(session.get("node"), "start")
+    
+    def test_different_channels_different_stories(self):
+        """Test that different channels have independent stories."""
+        # Alice starts on channel 1
+        self.bot.handle_message(make_msg(sender="Alice", content="!adv fantasy", channel_idx=1))
+        
+        # Bob starts on channel 2
+        self.bot.handle_message(make_msg(sender="Bob", content="!adv scifi", channel_idx=2))
+        
+        # Verify they have different sessions
+        key1 = get_session_key(1)
+        key2 = get_session_key(2)
+        session1 = self.bot._get_session(key1)
+        session2 = self.bot._get_session(key2)
+        
+        self.assertEqual(session1["theme"], "fantasy")
+        self.assertEqual(session2["theme"], "scifi")
+    
+    def test_reset_mentions_who_reset(self):
+        """Test that reset message mentions who reset the story."""
+        key = get_session_key(1)
+        self.bot._update_session(key, {"status": "active", "theme": "fantasy"})
+        
+        reply = self.bot.handle_message(make_msg(sender="Bob", content="!reset", channel_idx=1))
+        self.assertIn("Bob", reply)
+        self.assertIn("reset", reply.lower())
+    
+    def test_multiple_users_can_make_choices(self):
+        """Test that multiple users can make choices in sequence."""
+        # Alice starts
+        self.bot.handle_message(make_msg(sender="Alice", content="!adv", channel_idx=1))
+        
+        # Bob makes choice 1
+        reply1 = self.bot.handle_message(make_msg(sender="Bob", content="1", channel_idx=1))
+        self.assertIsNotNone(reply1)
+        
+        # Verify session exists and is active, finished, or cleared (if terminal node reached)
+        key = get_session_key(1)
+        session = self.bot._get_session(key)
+        # Session may be cleared if terminal node was reached, otherwise should have status
+        if session:
+            self.assertIn(session.get("status"), ["active", "finished"])
+
+
+# ---------------------------------------------------------------------------
 # LLM integration
 # ---------------------------------------------------------------------------
 
@@ -335,29 +437,30 @@ class TestHandleMessage(unittest.TestCase):
 class TestLLMIntegration(unittest.TestCase):
     def setUp(self):
         self.bot = make_bot()
-        self.bot._update_session("Alice", {"status": "active", "node": "start", "theme": "fantasy", "history": []})
+        self.session_key = get_session_key(1)
+        self.bot._update_session(self.session_key, {"status": "active", "node": "start", "theme": "fantasy", "history": []})
 
     def test_llm_response_used_when_available(self):
         llm_text = "You find a chest.\n1:Open it 2:Leave it 3:Kick it"
         with patch.object(self.bot, "_call_ollama", return_value=llm_text):
-            result = self.bot._generate_story("Alice", choice=None, theme="fantasy")
+            result = self.bot._generate_story(self.session_key, choice=None, theme="fantasy")
         self.assertEqual(result, llm_text)
 
     def test_fallback_used_when_ollama_fails(self):
         with patch.object(self.bot, "_call_ollama", return_value=None):
-            result = self.bot._generate_story("Alice", choice=None, theme="fantasy")
+            result = self.bot._generate_story(self.session_key, choice=None, theme="fantasy")
         self.assertIn("crossroads", result)
 
     def test_the_end_marks_session_finished(self):
         with patch.object(self.bot, "_call_ollama", return_value="You won! THE END"):
-            self.bot._generate_story("Alice", choice=None, theme="fantasy")
-        self.assertEqual(self.bot._get_session("Alice")["status"], "finished")
+            self.bot._generate_story(self.session_key, choice=None, theme="fantasy")
+        self.assertEqual(self.bot._get_session(self.session_key)["status"], "finished")
 
     def test_llm_result_returns_full_text(self):
         """_generate_story returns full LLM response text."""
         long_story = "A" * 300
         with patch.object(self.bot, "_call_ollama", return_value=long_story):
-            result = self.bot._generate_story("Alice", choice=None, theme="fantasy")
+            result = self.bot._generate_story(self.session_key, choice=None, theme="fantasy")
         # The result from _generate_story is the full text
         self.assertEqual(len(result), 300)
 
