@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-MCADV - MeshCore Adventure Bot
-AI-powered Choose Your Own Adventure bot for the MeshCore LoRa network.
+CYOA Bot - Choose Your Own Adventure Bot
+AI-powered Choose Your Own Adventure bot for LoRa mesh networks.
 
-Commands (send on the configured channel):
+This bot runs in distributed mode as an HTTP server. It receives messages
+from a radio gateway (radio_gateway.py) which handles the LoRa communication.
+
+Commands (sent via the radio gateway):
   !adv [theme]   - Start a new adventure (themes: fantasy, scifi, horror)
   !start [theme] - Alias for !adv
   1 / 2 / 3      - Make a choice in your current adventure
@@ -13,8 +16,6 @@ Commands (send on the configured channel):
 LLM backend:
   1. Ollama  - local self-hosted LLM via --ollama-url (can be on your network)
   2. Offline - built-in branching story trees, no internet required
-
-Messages longer than 200 characters are split across multiple LoRa transmissions.
 """
 
 import argparse
@@ -26,7 +27,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from logging_config import get_adventure_bot_logger, log_startup_info
-from meshcore import MeshCore, MeshCoreMessage
+from meshcore import MeshCoreMessage
 
 # Lazy import for requests - only loaded when LLM backends are used
 # This speeds up startup when running in offline mode
@@ -52,14 +53,8 @@ def _ensure_requests():
 
 # ---------------------------------------------------------------------------
 # Message length limit
-# The MeshCore binary protocol frame fits up to ~230 bytes of text payload,
-# but keeping to 200 leaves comfortable headroom for node-name prefixes and
-# multi-hop path overhead.
-#
-# Note: When messages are transmitted on a channel, MeshCore firmware prepends
-# the node_id in the format "node_id: content". For this bot with node_id="MCADV",
-# the overhead is 7 characters ("MCADV: "). The _send_reply() method automatically
-# accounts for this overhead when splitting long messages.
+# This defines the target maximum for story messages in the fallback story trees.
+# The radio gateway handles actual message splitting for LoRa transmission.
 # ---------------------------------------------------------------------------
 MAX_MSG_LEN = 200
 
@@ -69,12 +64,6 @@ MAX_MSG_LEN = 200
 # ---------------------------------------------------------------------------
 SESSION_FILE = Path(__file__).parent / "logs" / "sessions.json"
 SESSION_EXPIRY_SECONDS = 7200  # 2 hours of inactivity
-
-# ---------------------------------------------------------------------------
-# Periodic announcement
-# ---------------------------------------------------------------------------
-ANNOUNCE_INTERVAL = 3 * 60 * 60  # 3 hours
-ANNOUNCE_MESSAGE = "📖 MCADV: AI story bot! !adv to start. Reply 1/2/3 to choose. !help for info."
 
 # ---------------------------------------------------------------------------
 # LLM prompt
@@ -338,42 +327,25 @@ VALID_THEMES: List[str] = list(FALLBACK_STORIES.keys())
 # ---------------------------------------------------------------------------
 
 
-class _TerminalMeshStub:
-    """Stub mesh object for terminal mode"""
-    def __init__(self):
-        self.node_id = "MCADV"
-        self.send_message = lambda *args, **kwargs: None
-
-
 class AdventureBot:
     """
-    AI-powered Choose Your Own Adventure bot for MeshCore LoRa.
+    AI-powered Choose Your Own Adventure bot for LoRa mesh networks.
 
-    Uses MeshCore's API for all radio communication.  Story generation is
-    attempted via Ollama, then OpenAI, then Groq, before falling back to the
-    built-in offline story trees.
+    Runs as an HTTP server in distributed mode, receiving messages from a radio
+    gateway that handles LoRa communication. Story generation is attempted via
+    Ollama before falling back to built-in offline story trees.
     """
 
     def __init__(
         self,
-        port: Optional[str] = None,
-        baud: int = 115200,
         debug: bool = False,
-        allowed_channel: Optional[str] = None,
-        announce: bool = False,
         ollama_url: str = "http://localhost:11434",
         model: str = "llama3.2:1b",
-        terminal: bool = False,
-        distributed_mode: bool = False,
         http_host: str = "0.0.0.0",
         http_port: int = 5000,
     ):
-        self.allowed_channel = allowed_channel
-        self.announce = announce
         self.ollama_url = ollama_url.rstrip("/")
         self.model = model
-        self.terminal = terminal
-        self.distributed_mode = distributed_mode
         self.http_host = http_host
         self.http_port = http_port
 
@@ -392,25 +364,6 @@ class AdventureBot:
         # Only created when first LLM call is made
         self._http_session = None
 
-        # MeshCore handles all LoRa serial I/O (not used in terminal or distributed mode)
-        if not terminal and not distributed_mode:
-            self.mesh = MeshCore(
-                node_id="MCADV",
-                debug=debug,
-                serial_port=port,
-                baud_rate=baud,
-            )
-            self.mesh.register_handler("text", self.handle_message)
-            # Set channel filtering if channel name is provided
-            if self.allowed_channel is not None:
-                self.mesh.set_channel_filter(self.allowed_channel)
-        elif terminal:
-            # Terminal mode needs a stub mesh object for send_message mocking
-            self.mesh = _TerminalMeshStub()
-        else:
-            # Distributed mode has no mesh connection
-            self.mesh = None
-
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
@@ -418,68 +371,6 @@ class AdventureBot:
     def _session_key(self, message: MeshCoreMessage) -> str:
         """Return the session key: the message sender."""
         return message.sender
-
-    def _send_reply(self, text: str, channel_idx: int) -> None:
-        """
-        Send a reply via MeshCore, splitting into multiple messages if needed.
-
-        Messages longer than the effective payload size are split across multiple
-        LoRa transmissions with markers (1/N, 2/N, etc.) to indicate the part number.
-
-        The effective payload size accounts for:
-        - MAX_MSG_LEN (200 chars) - the LoRa payload limit
-        - Node name prefix overhead (e.g., "MCADV: " = 7 chars)
-        - Part indicator suffix (dynamically calculated based on number of parts)
-        """
-        # Calculate overhead from the node_id prefix added by MeshCore firmware
-        # Format is "node_id: content", so overhead is len(node_id) + 2
-        node_name_overhead = len(self.mesh.node_id) + 2  # +2 for ": "
-
-        # Available space for our content in a single message
-        effective_max_len = MAX_MSG_LEN - node_name_overhead
-
-        # Check if message fits in a single transmission
-        if len(text) <= effective_max_len:
-            self.mesh.send_message(text, "text", channel_idx=channel_idx)
-            return
-
-        # Split message into multiple parts
-        # First, estimate the number of parts needed to calculate suffix space
-        # Start with worst case assumption of " (999/999)" = 11 chars for very long messages
-        suffix_space = 11
-        chunk_size = effective_max_len - suffix_space
-
-        # Calculate actual number of chunks needed
-        chunks = []
-        remaining = text
-        while remaining:
-            chunks.append(remaining[:chunk_size])
-            remaining = remaining[chunk_size:]
-
-        total_parts = len(chunks)
-
-        # If we have fewer parts than expected, we can reclaim some space
-        # e.g., if total_parts < 100, we only need " (99/99)" = 8 chars
-        if total_parts < 100:
-            actual_suffix_space = len(f" ({total_parts}/{total_parts})")
-            if actual_suffix_space < suffix_space:
-                # Recalculate with the actual suffix space
-                chunk_size = effective_max_len - actual_suffix_space
-                chunks = []
-                remaining = text
-                while remaining:
-                    chunks.append(remaining[:chunk_size])
-                    remaining = remaining[chunk_size:]
-                total_parts = len(chunks)
-
-        # Send each chunk with part indicator
-        for i, chunk in enumerate(chunks, 1):
-            msg = f"{chunk} ({i}/{total_parts})"
-            self.mesh.send_message(msg, "text", channel_idx=channel_idx)
-            # Small delay between messages to avoid overwhelming the LoRa radio.
-            # This is intentionally blocking since messages must be sent sequentially.
-            if i < total_parts:
-                time.sleep(0.1)
 
     # ------------------------------------------------------------------
     # Session management
@@ -703,17 +594,10 @@ class AdventureBot:
         """
         Dispatch an incoming MeshCore channel message to the right command.
 
-        This is the single entry point registered with MeshCore.  It is also
-        called directly by unit tests (no radio hardware required).
-
-        In distributed mode, returns the response text instead of sending via mesh.
+        Returns the response text to be sent back via the radio gateway.
         """
         content = message.content.strip()
-        channel_idx = message.channel_idx if message.channel_idx is not None else 0
         content_lower = content.lower()
-
-        # Channel filtering is handled by meshcore.py when allowed_channel is set
-        # via set_channel_filter() during initialization
 
         self._expire_sessions()
         key = self._session_key(message)
@@ -722,7 +606,7 @@ class AdventureBot:
 
         # ---- !help -------------------------------------------------------
         if content_lower in ("!help", "help"):
-            response = "MCADV: !adv[theme] start, 1/2/3 choose, !quit end. Themes: fantasy scifi horror"
+            response = "CYOA Bot: !adv[theme] start, 1/2/3 choose, !quit end. Themes: fantasy scifi horror"
 
         # ---- !adv / !start [theme] ---------------------------------------
         elif content_lower.startswith(("!adv", "!start")):
@@ -759,72 +643,14 @@ class AdventureBot:
             else:
                 response = "No active adventure. Type !adv to start."
 
-        # Send response
-        if response:
-            if self.distributed_mode:
-                # In distributed mode, return response instead of sending
-                return response
-            # In direct mode, send via mesh
-            self._send_reply(response, channel_idx)
-
-        return response if self.distributed_mode else None
+        return response
 
     # ------------------------------------------------------------------
     # Main run loop
     # ------------------------------------------------------------------
 
     def run(self) -> None:
-        """Connect to MeshCore and run the bot until Ctrl-C."""
-        if self.distributed_mode:
-            self._run_http_server()
-        else:
-            self._run_direct_mode()
-
-    def _run_direct_mode(self) -> None:
-        """Run in direct mode with MeshCore radio connection."""
-        log_startup_info(self.logger, "MCADV Adventure Bot", "1.0.0")
-
-        self.mesh.start()
-        self._running = True
-
-        if self.allowed_channel is not None:
-            msg = f"MCADV running on channel '{self.allowed_channel}'."
-        else:
-            msg = "MCADV running on all channels. Type !adv to start."
-        print(msg)
-        self.logger.info(msg)
-        print("Press Ctrl+C to stop.\n", flush=True)
-
-        last_announce = time.time()
-        if self.announce:
-            if self.allowed_channel is not None:
-                self.mesh.send_message(ANNOUNCE_MESSAGE, "text", channel=self.allowed_channel)
-            else:
-                self.mesh.send_message(ANNOUNCE_MESSAGE, "text", channel_idx=0)
-
-        try:
-            while self._running:
-                time.sleep(1)
-                # Check if sessions need saving (batched internally with 5s minimum interval)
-                self._save_sessions()
-                if self.announce and (time.time() - last_announce >= ANNOUNCE_INTERVAL):
-                    if self.allowed_channel is not None:
-                        self.mesh.send_message(ANNOUNCE_MESSAGE, "text", channel=self.allowed_channel)
-                    else:
-                        self.mesh.send_message(ANNOUNCE_MESSAGE, "text", channel_idx=0)
-                    last_announce = time.time()
-        except KeyboardInterrupt:
-            print("\nStopping...")
-            self.logger.info("Stopping...")
-        finally:
-            self._running = False
-            self._save_sessions(force=True)  # Final save on shutdown
-            self.mesh.stop()
-            print("MCADV stopped.")
-            self.logger.info("MCADV stopped.")
-
-    def _run_http_server(self) -> None:
-        """Run in distributed mode with HTTP server."""
+        """Run the bot HTTP server in distributed mode."""
         try:
             from flask import Flask, request, jsonify
         except ImportError:
@@ -836,7 +662,7 @@ class AdventureBot:
         @app.route('/api/health', methods=['GET'])
         def health():
             """Health check endpoint."""
-            return jsonify({"status": "ok", "mode": "distributed"})
+            return jsonify({"status": "ok"})
 
         @app.route('/api/message', methods=['POST'])
         def handle_api_message():
@@ -865,7 +691,7 @@ class AdventureBot:
                 self.error_logger.exception("Error handling API message")
                 return jsonify({"error": str(e)}), 500
 
-        log_startup_info(self.logger, "MCADV Adventure Bot (Distributed Mode)", "1.0.0")
+        log_startup_info(self.logger, "CYOA Bot (Distributed Mode)", "1.0.0")
         print(f"HTTP server starting on {self.http_host}:{self.http_port}")
         self.logger.info(f"HTTP server starting on {self.http_host}:{self.http_port}")
         print("Press Ctrl+C to stop.\n", flush=True)
@@ -890,92 +716,8 @@ class AdventureBot:
         finally:
             self._running = False
             self._save_sessions(force=True)
-            print("MCADV stopped.")
-            self.logger.info("MCADV stopped.")
-
-    def run_terminal(self) -> None:
-        """
-        Run the bot in terminal mode for testing/playing without LoRa hardware.
-
-        This mode allows you to interact with the adventure bot directly from the
-        command line. All commands work the same as on the radio network:
-        - !adv [theme] - Start a new adventure
-        - 1/2/3 - Make choices
-        - !quit - End your adventure
-        - !help - Show help
-        - !status - Check your adventure status
-        """
-        log_startup_info(self.logger, "MCADV Adventure Bot (Terminal Mode)", "1.0.0")
-
-        print("\n" + "=" * 70)
-        print("  MCADV - Choose Your Own Adventure (Terminal Mode)")
-        print("=" * 70)
-        print("\nWelcome! You can test and play adventures from the terminal.")
-        print("\nAvailable commands:")
-        print("  !adv [theme]  - Start a new adventure (themes: fantasy, scifi, horror)")
-        print("  !start [theme]- Alias for !adv")
-        print("  1 / 2 / 3     - Make a choice")
-        print("  !status       - Show your current adventure state")
-        print("  !quit         - End your adventure")
-        print("  !help         - Show help")
-        print("  exit          - Exit terminal mode")
-        print("\nType '!adv' to begin your adventure!")
-        print("=" * 70 + "\n")
-
-        self._running = True
-
-        # Create a fake message for terminal mode - sender is "Terminal"
-        terminal_channel = 0
-
-        # Store terminal replies to display
-        terminal_replies = []
-
-        def terminal_send_message(text: str, msg_type: str = "text", channel_idx: int = 0):
-            """Capture outgoing messages and display them in terminal"""
-            terminal_replies.append(text)
-
-        # Replace mesh.send_message with our terminal handler
-        original_send = self.mesh.send_message
-        self.mesh.send_message = terminal_send_message
-
-        try:
-            while self._running:
-                # Display any pending replies from the bot
-                while terminal_replies:
-                    reply = terminal_replies.pop(0)
-                    print(f"\n📖 {reply}\n")
-
-                # Get user input
-                try:
-                    user_input = input("You> ").strip()
-                except EOFError:
-                    # Handle Ctrl+D
-                    break
-
-                if not user_input:
-                    continue
-
-                # Check for exit command
-                if user_input.lower() == "exit":
-                    break
-
-                # Create a fake MeshCoreMessage from terminal input
-                msg = MeshCoreMessage(
-                    sender="Terminal",
-                    content=user_input,
-                    channel_idx=terminal_channel,
-                )
-
-                # Process the message through the normal handler
-                self.handle_message(msg)
-
-        except KeyboardInterrupt:
-            print("\n\nExiting terminal mode...")
-        finally:
-            self._running = False
-            self._save_sessions(force=True)
-            self.mesh.send_message = original_send  # Restore original
-            print("\nGoodbye! Thanks for playing MCADV.\n")
+            print("Bot stopped.")
+            self.logger.info("Bot stopped.")
 
 
 # ---------------------------------------------------------------------------
@@ -985,9 +727,12 @@ class AdventureBot:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="MCADV – MeshCore Choose Your Own Adventure Bot",
+        description="CYOA Bot – Choose Your Own Adventure Bot (Distributed Mode Only)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+The bot runs as an HTTP server and receives messages from a radio gateway.
+The radio gateway (radio_gateway.py) handles LoRa communication separately.
+
 LLM backend (tries in order until one succeeds):
   1. Ollama  – local/LAN server via --ollama-url  (e.g. http://192.168.1.x:11434)
   2. Offline – built-in story trees, no internet needed
@@ -995,31 +740,23 @@ LLM backend (tries in order until one succeeds):
 Story themes:  fantasy (default)  scifi  horror
 
 Examples:
-  # Terminal mode (no radio hardware needed):
-  python adventure_bot.py --terminal
-
-  # Radio mode (requires LoRa hardware):
-  python adventure_bot.py -p /dev/ttyUSB0 --channel adventure
-  python adventure_bot.py -p /dev/ttyUSB0 --ollama-url http://192.168.1.50:11434
-  python adventure_bot.py -p /dev/ttyUSB0 --announce
+  python adventure_bot.py
+  python adventure_bot.py --host 0.0.0.0 --port 5000
+  python adventure_bot.py --ollama-url http://192.168.1.50:11434 --model llama3.2:3b
+  python adventure_bot.py --debug
 """,
     )
-    parser.add_argument("-p", "--port", help="Serial port (e.g. /dev/ttyUSB0). Auto-detects if omitted.")
-    parser.add_argument("-b", "--baud", type=int, default=115200, help="Baud rate (default: 115200)")
     parser.add_argument("-d", "--debug", action="store_true", help="Enable debug output")
-    parser.add_argument("-a", "--announce", action="store_true", help="Send periodic announcements every 3 hours")
     parser.add_argument(
-        "-t",
-        "--terminal",
-        action="store_true",
-        help="Run in terminal mode (no radio hardware needed, for testing/playing)",
+        "--host",
+        default="0.0.0.0",
+        help="HTTP server host (default: 0.0.0.0)",
     )
     parser.add_argument(
-        "-c",
-        "--channel",
-        type=str,
-        help="Only respond to messages from this channel name "
-        "(e.g. 'adventure'). Channel names are consistent across devices.",
+        "--port",
+        type=int,
+        default=5000,
+        help="HTTP server port (default: 5000)",
     )
     parser.add_argument(
         "--ollama-url",
@@ -1035,21 +772,14 @@ Examples:
     args = parser.parse_args()
 
     bot = AdventureBot(
-        port=args.port,
-        baud=args.baud,
         debug=args.debug,
-        allowed_channel=args.channel,
-        announce=args.announce,
         ollama_url=args.ollama_url,
         model=args.model,
-        terminal=args.terminal,
+        http_host=args.host,
+        http_port=args.port,
     )
 
-    # Run in terminal mode or radio mode
-    if args.terminal:
-        bot.run_terminal()
-    else:
-        bot.run()
+    bot.run()
 
 
 if __name__ == "__main__":
