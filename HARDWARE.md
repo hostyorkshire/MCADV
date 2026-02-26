@@ -164,17 +164,17 @@ venv/bin/python3 adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1 --debug
 
 **Best For:** Production deployments, low latency requirements, larger models
 
-**Current Standalone Setup:**
+**Setup:**
 ```bash
-# On Jetson - runs bot with radio via USB
+# On Jetson - runs bot server
 docker run -d -p 11434:11434 --gpus all ollama/ollama
 ollama pull llama3.2:3b-instruct-q4_K_M
 
-# Connect LoRa radio via USB
-python3 adventure_bot.py --port /dev/ttyUSB0 --ollama-url http://localhost:11434
+# Run bot in distributed mode
+python3 adventure_bot.py --distributed-mode --ollama-url http://localhost:11434
 ```
 
-**Future Distributed Setup:**
+**Distributed Setup:**
 ```bash
 # On Pi Zero 2W (radio gateway)
 python3 radio_gateway.py --bot-server-url http://jetson.local:5000
@@ -238,13 +238,13 @@ python3 adventure_bot.py --distributed-mode
 | Device | Price | RAM | Compute | Power | Storage | Best Use Case |
 |--------|-------|-----|---------|-------|---------|---------------|
 | **Ubuntu Desktop** | $0 | 8GB+ | Fast CPU/GPU | 50-300W | Built-in SSD | Development/testing |
-| **Pi 4/5 8GB** | $80 | 8GB | CPU-only | 10W | USB SSD ($40) | Budget, standalone |
+| **Pi 4/5 8GB** | $80 | 8GB | CPU-only | 10W | USB SSD ($40) | Budget deployment |
 | **Jetson Orin Nano** | $250-500 | 8GB | GPU (1024 cores) | 20W | NVMe SSD | Production, low latency |
 | **Mini PC (no GPU)** | $400-600 | 16-32GB | Fast CPU | 30-50W | NVMe SSD | Large models, multi-bot |
 | **Mini PC (w/ GPU)** | $800-1500 | 16-32GB | RTX 4060+ | 100-150W | NVMe SSD | Maximum capability |
 | **Orange Pi 5+** | $150 | 16GB | CPU+NPU | 15W | eMMC/NVMe | Budget alternative |
 
-**Pi Zero 2W** ($15) is only used as a radio gateway in distributed mode (future feature).
+**Pi Zero 2W** ($15) is used as a radio gateway in distributed mode.
 
 ---
 
@@ -262,7 +262,7 @@ Capabilities:
 - Easy migration to Pi later
 ```
 
-### Configuration B: Standalone Pi Setup ($160 total)
+### Configuration B: Pi 4/5 Development Setup ($160 total)
 ```
 Pi 4/5 8GB ($80) + USB SSD ($40) + LoRa radio via USB + Power supply ($20) + Case ($20)
 
@@ -272,29 +272,29 @@ Capabilities:
 - Concurrent users: 5-10
 - Power: ~12W total
 - SSD storage for LLM models
-- Bot runs directly on Pi 4/5
+- Good for testing distributed architecture
 ```
 
-### Configuration C: Distributed Pi Setup (Future - $250 total)
+### Configuration C: Distributed Pi Setup ($250 total)
 ```
 Pi Zero 2W ($15) + Pi 4/5 8GB ($80) + USB SSD ($40) + Power supplies ($40) + Cases/cooling ($75)
 
 Capabilities:
-- Pi Zero 2W: Radio gateway only
-- Pi 4/5: Bot + LLM server
+- Pi Zero 2W: Radio gateway (radio_gateway.py)
+- Pi 4/5: Bot + LLM server (adventure_bot.py --distributed-mode)
 - Small models: llama3.2:1b
 - Inference: 2-5 seconds per story
 - Scalable: Add more Pi Zero 2W nodes
 - Total power: ~12W
 ```
 
-### Configuration D: Distributed Jetson Setup (Future - $400 total)
+### Configuration D: Distributed Jetson Setup ($400 total)
 ```
 Pi Zero 2W ($15) + Jetson Orin Nano 8GB ($250) + Power/accessories ($135)
 
 Capabilities:
-- Pi Zero 2W: Radio gateway only
-- Jetson: Bot + GPU-accelerated LLM
+- Pi Zero 2W: Radio gateway (radio_gateway.py)
+- Jetson: Bot + GPU-accelerated LLM (adventure_bot.py --distributed-mode)
 - Medium models: llama3.2:3b, phi-3-mini
 - Inference: 500ms-2s per story
 - Concurrent users: 20-30
@@ -302,22 +302,19 @@ Capabilities:
 - GPU acceleration
 ```
 
-### Configuration E: High-End Distributed Setup (Future - $650+ total)
+### Configuration E: High-End Distributed Setup ($650+ total)
 ```
 Pi Zero 2W ($15) + Mini PC ($500+) + Accessories ($135+)
 
 Capabilities:
-- Pi Zero 2W: Radio gateway only
-- Mini PC: Bot + powerful LLM
+- Pi Zero 2W: Radio gateway (radio_gateway.py)
+- Mini PC: Bot + powerful LLM (adventure_bot.py --distributed-mode)
 - Large models: llama3:8b, mistral:7b
 - Inference: 300ms-1s per story
 - Concurrent users: 50+
 - Power: ~65W total
 - Upgradeable
 ```
-
-> **Note:** Configurations C, D, and E require distributed mode (radio_gateway.py) which 
-> is not yet implemented. Currently use Configuration A or B.
 
 ---
 
@@ -451,18 +448,7 @@ source ~/.bashrc
 5. ✅ Test before deploying to Pi
 6. ✅ Same code runs on Pi later
 
-### For Production (Standalone): **Raspberry Pi 4/5 (8GB) with USB SSD**
-
-**Why:**
-1. ✅ Complete standalone solution
-2. ✅ Low power consumption (~10W)
-3. ✅ Affordable (~$160 total)
-4. ✅ Runs small models well
-5. ✅ SSD for reliable LLM storage
-6. ✅ Battery operation possible
-7. ✅ Easy to set up and maintain
-
-### For Production (Distributed - Future): **Pi Zero 2W + Pi 5**
+### For Production (Distributed): **Pi Zero 2W + Pi 5**
 
 **Why:**
 1. ✅ Separates radio from compute
@@ -471,8 +457,9 @@ source ~/.bashrc
 4. ✅ Scalable (multiple Pi Zeros → one Pi 5)
 5. ✅ Same Raspberry Pi ecosystem
 6. ✅ Low combined power (~12W)
+7. ✅ Affordable (~$250 total)
 
-### For Performance (Distributed - Future): **Pi Zero 2W + Jetson Orin Nano**
+### For Performance (Distributed): **Pi Zero 2W + Jetson Orin Nano**
 
 **Why:**
 1. ✅ GPU acceleration (10-50x faster)
@@ -495,8 +482,8 @@ Use your existing Ubuntu desktop PC for development and testing.
 | USB Cable | Included | - | For radio connection |
 | **Total** | **$50-60** | | Ready to develop! |
 
-### Scenario 2: Standalone Pi Setup ($160 - $210)
-Pi 4/5 with LoRa radio directly connected via USB.
+### Scenario 2: Pi 4/5 Development Setup ($160 - $210)
+Pi 4/5 with LoRa radio directly connected via USB for testing.
 
 | Item | Price | Source | Notes |
 |------|-------|--------|-------|
@@ -507,15 +494,15 @@ Pi 4/5 with LoRa radio directly connected via USB.
 | microSD card (32GB) | $10 | Amazon | For OS |
 | Active cooler | $5 | Official | Keep Pi cool |
 | Case | $15 | Amazon/3D print | Protection |
-| **Total** | **$210-220** | | Complete standalone! |
+| **Total** | **$210-220** | | Good for development! |
 
-### Scenario 3: Distributed Pi Setup (Future - $250 - $310)
-Separate radio gateway and bot server.
+### Scenario 3: Distributed Pi Setup ($250 - $310)
+Separate radio gateway and bot server (recommended for production).
 
 | Item | Price | Source | Notes |
 |------|-------|--------|-------|
-| Pi Zero 2W | $15 | Adafruit/PiShop | Radio gateway only |
-| Pi 4/5 (8GB) | $80 | Official retailers | Bot server |
+| Pi Zero 2W | $15 | Adafruit/PiShop | Radio gateway (radio_gateway.py) |
+| Pi 4/5 (8GB) | $80 | Official retailers | Bot server (adventure_bot.py --distributed-mode) |
 | USB SSD (256GB) | $40 | Amazon | For Pi 4/5 LLM storage |
 | LoRa MeshCore Radio | $50-60 | MeshCore project | Connects to Pi Zero |
 | 2x Power supplies | $40 | Amazon | One for each Pi |
@@ -543,32 +530,32 @@ Cost: ~$50-60 (just the radio)
 Use: Development, testing, experimentation
 ```
 
-### Scenario 2: Standalone Pi Production
+### Scenario 2: Pi 4/5 Development
 ```
 Setup: Pi 4/5 (8GB) + USB SSD + LoRa radio via USB
-Bot runs: On Pi 4/5 (adventure_bot.py)
+Bot runs: On Pi 4/5 (adventure_bot.py --port /dev/ttyUSB0)
 Network: Optional (for Ollama LAN or cloud LLM)
 Power: Wall power or battery
 Cost: ~$210
-Use: Production deployment, all-in-one unit
+Use: Development, testing distributed architecture
 ```
 
-### Scenario 3: Portable Field Unit (Future)
+### Scenario 3: Portable Field Unit (Distributed)
 ```
 Setup: Pi Zero 2W + Pi 4/5 in portable case
-Bot runs: On Pi 4/5 (adventure_bot.py)
-Radio: On Pi Zero 2W (radio_gateway.py)
+Bot runs: On Pi 4/5 (adventure_bot.py --distributed-mode)
+Radio: On Pi Zero 2W (radio_gateway.py --bot-server-url http://pi5.local:5000)
 Network: Direct WiFi or Ethernet between devices
 Power: Battery pack
 Cost: ~$340 (with battery)
 Use: Field operations, portable events
 ```
 
-### Scenario 4: Multiple Radio Nodes (Future)
+### Scenario 4: Multiple Radio Nodes (Distributed)
 ```
 Setup: 3x Pi Zero 2W + 1x Pi 4/5 (shared bot server)
-Bot runs: On Pi 4/5 (adventure_bot.py)
-Radio: On each Pi Zero 2W (radio_gateway.py)
+Bot runs: On Pi 4/5 (adventure_bot.py --distributed-mode)
+Radio: On each Pi Zero 2W (radio_gateway.py --bot-server-url http://pi5.local:5000)
 Network: WiFi network connecting all devices
 Power: Mixed (wall + battery)
 Cost: ~$315 (economy of scale)
@@ -593,18 +580,18 @@ Use: Multi-location coverage, mesh expansion
 4. **Set up USB SSD** - For LLM model storage
 5. **Deploy and enjoy!** - Fast, responsive bot
 
-### For Future Distributed Setup:
-1. **Wait for radio_gateway.py** - Not yet implemented
-2. **Use standalone mode** - Until distributed is ready
-3. **Plan network layout** - WiFi or Ethernet
-4. **Order Pi Zero 2W** - When feature is available
+### For Distributed Setup:
+1. **Set up bot server** - Pi 4/5 with adventure_bot.py --distributed-mode
+2. **Set up radio gateway** - Pi Zero 2W with radio_gateway.py
+3. **Configure network** - WiFi or Ethernet connection
+4. **Test connectivity** - Verify HTTP communication works
 
 ---
 
 ## Questions?
 
 - **Q: Where does the bot run?**
-  - A: **On Pi 4/5 or Ubuntu PC**, NOT on Pi Zero 2W. Pi Zero 2W only handles radio (future).
+  - A: **On Pi 4/5 or Ubuntu PC**, NOT on Pi Zero 2W. Pi Zero 2W only handles radio.
 
 - **Q: Can I use my Ubuntu desktop for development?**
   - A: **Yes!** It acts exactly like Pi 4/5. Same code, same setup. Perfect for testing.
@@ -619,7 +606,7 @@ Use: Multi-location coverage, mesh expansion
   - A: No, but it helps a lot. CPU-only works with small models on Pi 4/5.
 
 - **Q: Can multiple Pi Zeros share one bot server?**
-  - A: Yes! (Future feature) One Pi 4/5 can serve 3-5 Pi Zero 2W radio gateways.
+  - A: Yes! One Pi 4/5 can serve 3-5 Pi Zero 2W radio gateways in distributed mode.
 
 - **Q: What about cloud LLM (OpenAI/Groq)?**
   - A: Still works! This setup gives you the option for local or cloud LLM.
