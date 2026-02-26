@@ -8,7 +8,20 @@ For detailed setup instructions with virtual environment (recommended):
 
 **📖 See [SETUP.md](SETUP.md) for complete installation guide**
 
-Quick start:
+### Option 1: Interactive Setup (Recommended for New Users)
+```bash
+# Run the interactive menu-driven setup script
+./full_setup.sh
+```
+
+This will guide you through:
+- Python environment setup
+- Serial port detection and configuration
+- Channel and LLM backend configuration
+- Systemd service installation
+- Testing your configuration
+
+### Option 2: Manual Setup
 ```bash
 # Create virtual environment and install dependencies
 ./setup_venv.sh
