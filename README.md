@@ -32,19 +32,6 @@ adventures over the radio.
 
 ## How it works
 
-### Standalone Mode (Single Pi)
-```
-Player → LoRa radio → Pi 4/5 (adventure_bot.py) → LLM or offline tree → LoRa radio → Player
-                         |
-                   Bot runs here
-                   All game logic
-                   Radio + LLM
-```
-
-**Hardware:** Pi 4/5 (4GB+ RAM) with LoRa radio connected via USB  
-**Storage:** SSD via USB recommended for LLM models  
-**Alternative:** Desktop PC running Ubuntu (for development/testing)
-
 ### Distributed Mode (Recommended for Pi Zero 2W)
 ```
 Player → LoRa → Pi Zero 2W → HTTP → Pi 4/5 (adventure_bot.py) → HTTP → Pi Zero 2W → LoRa → Player
@@ -62,8 +49,8 @@ Player → LoRa → Pi Zero 2W → HTTP → Pi 4/5 (adventure_bot.py) → HTTP �
 **Storage:** SSD connected via USB to Pi 4/5 for LLM model storage  
 **Alternative:** Desktop PC running Ubuntu instead of Pi 4/5 (for development/testing)
 
-> **Note:** Currently only standalone mode is implemented. Distributed mode components 
-> (radio_gateway.py and llm_server.py) are planned for future development.
+> **Note:** Distributed mode components (radio_gateway.py and llm_server.py) are planned 
+> for future development.
 
 1. A player types `!adv` on the MeshCore channel.
 2. The bot generates (or retrieves) the opening scene and three choices.
@@ -119,8 +106,7 @@ LoRa radio communication but needs a partner for the bot and AI processing.
 - **SSD via USB** ($40) - Storage for LLM models on Pi 4/5
 - **Total cost:** ~$210 (with accessories)
 
-> **Current Status:** Distributed mode is planned but not yet implemented.  
-> Currently, run adventure_bot.py in standalone mode on Pi 4/5 with radio attached.
+> **Current Status:** Distributed mode is planned but not yet implemented.
 
 See **[HARDWARE.md](HARDWARE.md)** for complete hardware recommendations including:
 - Raspberry Pi 5 (budget option)
@@ -128,12 +114,6 @@ See **[HARDWARE.md](HARDWARE.md)** for complete hardware recommendations includi
 - Mini PC / NUC (maximum power)
 - Desktop PC running Ubuntu (for development)
 - Network setup, power budgets, and shopping lists
-
-### For Standalone Deployments
-
-**Minimum:** Raspberry Pi 4 (4GB+ RAM) with cloud LLM (OpenAI/Groq)  
-**Recommended:** Raspberry Pi 4/5 (8GB RAM) with local Ollama + SSD storage  
-**Development:** Desktop PC running Ubuntu with LoRa radio via USB
 
 ---
 
@@ -160,7 +140,7 @@ The bot tries each backend in order and falls back to the next if unavailable.
 - **Network:** WiFi or Ethernet between devices
 - **Development:** Use Ubuntu desktop PC instead of Pi 4/5
 
-**For Pi 4/5 standalone (current implementation):**
+**For Pi 4/5 (current implementation):**
 - **Ollama on same device** – Pi 4/5 with 4GB+ RAM can run small models
 - **Ollama on your LAN** – run `ollama serve` on a laptop, desktop, or another Pi
 - **Groq free tier** – very fast cloud inference, generous free quota
@@ -250,8 +230,6 @@ venv/bin/python3 adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1 --debug
 > **Note:** Distributed mode not yet implemented. Pi Zero 2W will only run the radio 
 > gateway component (radio_gateway.py) in future releases. The bot itself runs on Pi 4/5.
 
-For now, use Pi 4/5 in standalone mode for all deployments.
-
 ---
 
 ## Configuration reference
@@ -323,7 +301,8 @@ meshcore.py  ─── _dispatch_channel_message() ──▶ handle_message()
 
 ## Performance & Architecture
 
-### Single Pi Mode
+## Performance & Architecture
+
 MCADV is **optimized for Raspberry Pi** hardware with:
 - ⚡ Fast startup (instant in offline mode)
 - 💾 Low memory usage (~20MB for 50 concurrent players)
@@ -345,15 +324,13 @@ See [PERFORMANCE.md](PERFORMANCE.md) for details on optimizations and benchmarks
 - 🧠 **Powerful thinking** - Pi 5/Jetson runs LLM with GPU acceleration
 - 🔋 **Low power** - Pi Zero 2W uses <1W, can run on small battery
 - 📡 **Multi-node** - One LLM server can serve 3-5 radio gateways
-- 💰 **Cost effective** - Total setup ~$170 vs. $80+ per standalone unit
+- 💰 **Cost effective** - Total setup ~$250
 
 **Performance:**
 | Setup | Radio Latency | LLM Time | Total Response | Power |
 |-------|---------------|----------|----------------|-------|
-| Pi Zero standalone | <10ms | N/A (offline only) | <100ms | <1W |
 | Pi Zero + Pi 5 | <10ms | 2-5s | 2-5s | ~12W |
 | Pi Zero + Jetson | <10ms | 500ms-2s | 500ms-2s | ~25W |
-| Pi 4 standalone | <50ms | 3-8s | 3-8s | ~8W |
 
 See [HARDWARE.md](HARDWARE.md) for complete hardware guide and setup instructions.
 
