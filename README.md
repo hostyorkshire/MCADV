@@ -34,17 +34,36 @@ adventures over the radio.
 
 ### Standalone Mode (Single Pi)
 ```
-Player → LoRa radio → Pi (adventure_bot.py) → LLM or offline tree → LoRa radio → Player
+Player → LoRa radio → Pi 4/5 (adventure_bot.py) → LLM or offline tree → LoRa radio → Player
+                         |
+                   Bot runs here
+                   All game logic
+                   Radio + LLM
 ```
+
+**Hardware:** Pi 4/5 (4GB+ RAM) with LoRa radio connected via USB  
+**Storage:** SSD via USB recommended for LLM models  
+**Alternative:** Desktop PC running Ubuntu (for development/testing)
 
 ### Distributed Mode (Recommended for Pi Zero 2W)
 ```
-Player → LoRa → Pi Zero 2W (radio_gateway) → HTTP → Pi 5 (llm_server) → HTTP → Pi Zero 2W → LoRa → Player
-                   |                                        |
-              Radio I/O                              LLM Processing
-              Sessions                               Story Generation
-              ~15MB RAM                              ~4GB RAM
+Player → LoRa → Pi Zero 2W → HTTP → Pi 4/5 (adventure_bot.py) → HTTP → Pi Zero 2W → LoRa → Player
+                   |                              |
+              Radio Only                    Bot runs here
+              MeshCore I/O                  All game logic
+              ~15MB RAM                     LLM Processing
+                                           Story Generation
+                                           ~4GB RAM
+                                           SSD storage via USB
 ```
+
+**Pi Zero 2W:** Handles only LoRa radio communication (future: radio_gateway.py)  
+**Pi 4/5:** Runs the bot with all game logic and LLM (adventure_bot.py)  
+**Storage:** SSD connected via USB to Pi 4/5 for LLM model storage  
+**Alternative:** Desktop PC running Ubuntu instead of Pi 4/5 (for development/testing)
+
+> **Note:** Currently only standalone mode is implemented. Distributed mode components 
+> (radio_gateway.py and llm_server.py) are planned for future development.
 
 1. A player types `!adv` on the MeshCore channel.
 2. The bot generates (or retrieves) the opening scene and three choices.
@@ -82,26 +101,39 @@ sudo journalctl -u adventure_bot -f
 
 ## Hardware Requirements
 
+### Where Does the Bot Run? 🤖
+
+**The bot (adventure_bot.py) always runs on the more powerful device:**
+- ✅ **Pi 4/5 (4GB+ RAM)** - Runs bot + LLM, connects to LoRa radio via USB
+- ✅ **Desktop PC (Ubuntu)** - For development/testing, acts like Pi 4/5
+- ❌ **Pi Zero 2W** - Only for radio gateway (future implementation)
+
 ### For Pi Zero 2W Deployments ⚠️
 
-**The Pi Zero 2W (512MB RAM) cannot run LLMs locally.** It's perfect for handling 
-LoRa radio communication but needs a partner for AI processing.
+**The Pi Zero 2W (512MB RAM) cannot run the bot or LLMs.** It's perfect for handling 
+LoRa radio communication but needs a partner for the bot and AI processing.
 
 **Recommended distributed setup:**
-- **Pi Zero 2W** ($15) - Radio gateway, message handling
-- **Pi 5 8GB** ($80) - LLM server with Ollama
-- **Total cost:** ~$170 (with accessories)
+- **Pi Zero 2W** ($15) - Radio gateway ONLY (future: radio_gateway.py)
+- **Pi 5 8GB** ($80) - **Runs the bot (adventure_bot.py)** with Ollama
+- **SSD via USB** ($40) - Storage for LLM models on Pi 4/5
+- **Total cost:** ~$210 (with accessories)
+
+> **Current Status:** Distributed mode is planned but not yet implemented.  
+> Currently, run adventure_bot.py in standalone mode on Pi 4/5 with radio attached.
 
 See **[HARDWARE.md](HARDWARE.md)** for complete hardware recommendations including:
 - Raspberry Pi 5 (budget option)
 - NVIDIA Jetson Orin Nano (best performance)
 - Mini PC / NUC (maximum power)
+- Desktop PC running Ubuntu (for development)
 - Network setup, power budgets, and shopping lists
 
 ### For Standalone Deployments
 
-**Minimum:** Raspberry Pi 3B+ or 4 (1GB+ RAM) with cloud LLM (OpenAI/Groq)  
-**Recommended:** Raspberry Pi 4/5 (4GB+ RAM) with local Ollama
+**Minimum:** Raspberry Pi 4 (4GB+ RAM) with cloud LLM (OpenAI/Groq)  
+**Recommended:** Raspberry Pi 4/5 (8GB RAM) with local Ollama + SSD storage  
+**Development:** Desktop PC running Ubuntu with LoRa radio via USB
 
 ---
 
@@ -121,17 +153,25 @@ The bot tries each backend in order and falls back to the next if unavailable.
 
 #### Choosing an LLM backend
 
-**For Pi Zero 2W:** Use the distributed architecture (see HARDWARE.md)
-- Run `llm_server.py` on a Pi 5 or more powerful device
-- Run `radio_gateway.py` on the Pi Zero 2W
-- Connect via local network (WiFi or Ethernet)
+**For distributed architecture (future):**
+- **Pi Zero 2W:** Handles radio only (future: radio_gateway.py)
+- **Pi 4/5:** Runs the bot (adventure_bot.py) with Ollama
+- **Storage:** SSD via USB on Pi 4/5 for LLM models
+- **Network:** WiFi or Ethernet between devices
+- **Development:** Use Ubuntu desktop PC instead of Pi 4/5
 
-**For Pi 3B+/4/5 standalone:**
+**For Pi 4/5 standalone (current implementation):**
 - **Ollama on same device** – Pi 4/5 with 4GB+ RAM can run small models
 - **Ollama on your LAN** – run `ollama serve` on a laptop, desktop, or another Pi
 - **Groq free tier** – very fast cloud inference, generous free quota
 - **OpenAI** – reliable, small cost per adventure
 - **No LLM / offline** – three fully self-contained story trees (fantasy, sci-fi, horror)
+- **Storage:** SSD via USB recommended for model storage (2-8GB per model)
+
+**For development/testing:**
+- Use Ubuntu desktop PC with LoRa radio connected via USB
+- Run adventure_bot.py directly on your desktop
+- Acts exactly like Pi 4/5 deployment
 
 📖 **See [guides/OLLAMA_SETUP.md](guides/OLLAMA_SETUP.md) for a comprehensive guide on setting up Ollama (local and LAN).**
 
@@ -150,7 +190,11 @@ stories for any theme you type (`!adv pirate`, `!adv western`, etc.).
 
 ---
 
-## Installation on Raspberry Pi Zero
+## Installation
+
+### On Raspberry Pi 4/5 (Recommended)
+
+The bot runs on Pi 4/5 with the LoRa radio connected via USB. Optional SSD for LLM storage.
 
 ```bash
 # 1. Install OS dependencies
@@ -169,6 +213,44 @@ venv/bin/python3 adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1 --debug
 bash scripts/setup_mcadv.sh
 sudo systemctl start adventure_bot
 ```
+
+**Optional SSD Setup:**
+```bash
+# Mount SSD for LLM model storage
+sudo mkdir -p /mnt/ssd
+sudo mount /dev/sda1 /mnt/ssd
+# Add to /etc/fstab for automatic mounting
+
+# Install Ollama and store models on SSD
+export OLLAMA_MODELS=/mnt/ssd/ollama
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull llama3.2:1b
+```
+
+### On Ubuntu Desktop PC (Development/Testing)
+
+Use your desktop PC as a substitute for Pi 4/5 during development.
+
+```bash
+# 1. Install dependencies
+sudo apt-get update && sudo apt-get install -y python3-pip python3-serial python3-venv
+
+# 2. Clone and set up
+git clone https://github.com/hostyorkshire/MCADV
+cd MCADV
+python3 -m venv venv
+venv/bin/pip install -r requirements.txt
+
+# 3. Connect LoRa radio via USB and run
+venv/bin/python3 adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1 --debug
+```
+
+### Pi Zero 2W (Future - Radio Gateway Only)
+
+> **Note:** Distributed mode not yet implemented. Pi Zero 2W will only run the radio 
+> gateway component (radio_gateway.py) in future releases. The bot itself runs on Pi 4/5.
+
+For now, use Pi 4/5 in standalone mode for all deployments.
 
 ---
 
