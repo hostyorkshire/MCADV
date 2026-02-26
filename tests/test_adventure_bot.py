@@ -662,7 +662,7 @@ class TestMultiMessageIntegration(unittest.TestCase):
         """
         bot = make_bot()
 
-        # Node name is "MCADV" (5 chars) + ": " (2 chars) = 7 chars overhead
+        # Node name is "CYOA Bot" (8 chars) + ": " (2 chars) = 10 chars overhead
         node_overhead = len(bot.mesh.node_id) + 2
         effective_max = MAX_MSG_LEN - node_overhead
 
