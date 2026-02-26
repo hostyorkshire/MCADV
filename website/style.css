@@ -186,6 +186,11 @@ body::before {
     font-weight: 700;
 }
 
+.white-text {
+    color: #ffffff;
+    font-weight: 700;
+}
+
 /* Ancient list styling */
 .ancient-list {
     list-style: none;
