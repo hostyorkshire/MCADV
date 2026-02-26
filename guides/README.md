@@ -39,7 +39,7 @@ Complete guide for setting up Ollama (local and LAN) for AI-powered story genera
 **Recommended for:**
 - Users wanting to run local AI models
 - Distributed Pi Zero 2W + Pi 5 setups
-- Users seeking privacy and offline capability
+- Users seeking privacy and complete offline operation (no internet required)
 - Advanced Ollama configuration
 
 ---
