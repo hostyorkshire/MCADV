@@ -776,7 +776,7 @@ class AdventureBot:
 
         # Drop messages from channels we are not configured to serve
         if self.allowed_channel_idx is not None and channel_idx != self.allowed_channel_idx:
-            return None if self.distributed_mode else None
+            return None
 
         self._expire_sessions()
         key = self._session_key(message)

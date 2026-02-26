@@ -49,9 +49,6 @@ Player → LoRa → Pi Zero 2W → HTTP → Pi 4/5 (adventure_bot.py) → HTTP �
 **Storage:** SSD connected via USB to Pi 4/5 for LLM model storage  
 **Alternative:** Desktop PC running Ubuntu instead of Pi 4/5 (for development/testing)
 
-> **Note:** Distributed mode components (radio_gateway.py and llm_server.py) are planned 
-> for future development.
-
 1. A player types `!adv` on the MeshCore channel.
 2. The bot generates (or retrieves) the opening scene and three choices.
 3. The player replies `1`, `2`, or `3`.
@@ -401,8 +398,6 @@ radio_gateway.py ─── meshcore.py ──▶ HTTP POST to bot server
 ```
 
 ---
-
-## Performance & Architecture
 
 ## Performance & Architecture
 
