@@ -104,7 +104,7 @@ body::before {
 }
 
 .title-gothic {
-    font-family: 'UnifrakturMaguntia', cursive;
+    font-family: 'MedievalSharp', cursive;
     font-size: 4em;
     color: var(--text-gold);
     text-shadow: 
