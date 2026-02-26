@@ -427,11 +427,6 @@ class AdventureBot:
         - Node name prefix overhead (e.g., "MCADV: " = 7 chars)
         - Part indicator suffix (dynamically calculated based on number of parts)
         """
-        # In terminal mode, mesh is None, so we need to handle that
-        if self.mesh is None:
-            # Terminal mode - no mesh, so just print directly (handled by terminal mode)
-            return
-            
         # Calculate overhead from the node_id prefix added by MeshCore firmware
         # Format is "node_id: content", so overhead is len(node_id) + 2
         node_name_overhead = len(self.mesh.node_id) + 2  # +2 for ": "

@@ -57,17 +57,6 @@ def make_bot(**kwargs) -> AdventureBot:
     bot = AdventureBot(**defaults)
     # Mock the mesh methods for testing
     bot.mesh.send_message = MagicMock()
-    # Create a mock to track set_channel_filter calls made during init
-    # We need to record what was called with the real method
-    original_calls = []
-    if hasattr(bot.mesh, '_original_set_channel_filter'):
-        # Already mocked in a previous test
-        pass
-    else:
-        # Track if set_channel_filter was called
-        if kwargs.get('allowed_channel') is not None:
-            original_calls.append(('set_channel_filter', kwargs['allowed_channel']))
-    bot.mesh._channel_filter_calls = original_calls
     # Isolate each test: start with clean in-memory sessions, no disk writes
     bot._sessions = {}
     bot._save_sessions = MagicMock()
