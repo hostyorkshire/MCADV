@@ -57,7 +57,12 @@ def make_bot(**kwargs) -> AdventureBot:
 
 
 def make_msg(sender: str = "Alice", content: str = "!adv", channel_idx: int = 1) -> MeshCoreMessage:
-    """Create a MeshCoreMessage for testing."""
+    """
+    Create a MeshCoreMessage for testing.
+    
+    Note: channel_idx is part of the MeshCoreMessage structure (used by radio gateway)
+    but is not used by the bot for routing in distributed mode.
+    """
     return MeshCoreMessage(sender=sender, content=content, channel_idx=channel_idx)
 
 

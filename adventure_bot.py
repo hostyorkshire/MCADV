@@ -53,7 +53,8 @@ def _ensure_requests():
 
 # ---------------------------------------------------------------------------
 # Message length limit
-# The radio gateway handles splitting messages if they exceed the LoRa payload limit.
+# This defines the target maximum for story messages in the fallback story trees.
+# The radio gateway handles actual message splitting for LoRa transmission.
 # ---------------------------------------------------------------------------
 MAX_MSG_LEN = 200
 
