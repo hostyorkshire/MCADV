@@ -395,7 +395,7 @@ class AdventureBot:
         The effective payload size accounts for:
         - MAX_MSG_LEN (200 chars) - the LoRa payload limit
         - Node name prefix overhead (e.g., "MCADV: " = 7 chars)
-        - Part indicator suffix (e.g., " (99/99)" = 8 chars worst case)
+        - Part indicator suffix (dynamically calculated based on number of parts)
         """
         # Calculate overhead from the node_id prefix added by MeshCore firmware
         # Format is "node_id: content", so overhead is len(node_id) + 2
@@ -410,23 +410,40 @@ class AdventureBot:
             return
         
         # Split message into multiple parts
-        # Reserve space for " (X/Y)" suffix where Y could be up to 2 digits
-        # Worst case: " (99/99)" = 8 characters
-        suffix_space = 8
+        # First, estimate the number of parts needed to calculate suffix space
+        # Start with worst case assumption of " (999/999)" = 11 chars for very long messages
+        suffix_space = 11
         chunk_size = effective_max_len - suffix_space
         
+        # Calculate actual number of chunks needed
         chunks = []
         remaining = text
         while remaining:
             chunks.append(remaining[:chunk_size])
             remaining = remaining[chunk_size:]
         
-        # Send each chunk with part indicator
         total_parts = len(chunks)
+        
+        # If we have fewer parts than expected, we can reclaim some space
+        # e.g., if total_parts < 100, we only need " (99/99)" = 8 chars
+        if total_parts < 100:
+            actual_suffix_space = len(f" ({total_parts}/{total_parts})")
+            if actual_suffix_space < suffix_space:
+                # Recalculate with the actual suffix space
+                chunk_size = effective_max_len - actual_suffix_space
+                chunks = []
+                remaining = text
+                while remaining:
+                    chunks.append(remaining[:chunk_size])
+                    remaining = remaining[chunk_size:]
+                total_parts = len(chunks)
+        
+        # Send each chunk with part indicator
         for i, chunk in enumerate(chunks, 1):
             msg = f"{chunk} ({i}/{total_parts})"
             self.mesh.send_message(msg, "text", channel_idx=channel_idx)
-            # Small delay between messages to avoid overwhelming the LoRa radio
+            # Small delay between messages to avoid overwhelming the LoRa radio.
+            # This is intentionally blocking since messages must be sent sequentially.
             if i < total_parts:
                 time.sleep(0.1)
 
