@@ -58,7 +58,7 @@ def _ensure_requests():
 #
 # Note: When messages are transmitted on a channel, MeshCore firmware prepends
 # the node_id in the format "node_id: content". For this bot with node_id="CYOA Bot",
-# the overhead is 11 characters ("CYOA Bot: "). The _send_reply() method automatically
+# the overhead is 10 characters ("CYOA Bot: "). The _send_reply() method automatically
 # accounts for this overhead when splitting long messages.
 # ---------------------------------------------------------------------------
 MAX_MSG_LEN = 200
@@ -428,7 +428,7 @@ class AdventureBot:
 
         The effective payload size accounts for:
         - MAX_MSG_LEN (200 chars) - the LoRa payload limit
-        - Node name prefix overhead (e.g., "CYOA Bot: " = 11 chars)
+        - Node name prefix overhead (e.g., "CYOA Bot: " = 10 chars)
         - Part indicator suffix (dynamically calculated based on number of parts)
         """
         # Calculate overhead from the node_id prefix added by MeshCore firmware
