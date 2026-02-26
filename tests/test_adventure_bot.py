@@ -54,7 +54,6 @@ def make_bot(**kwargs) -> AdventureBot:
         model="test-model",
         openai_key=None,
         groq_key=None,
-        shared_mode=False,
     )
     defaults.update(kwargs)
     bot = AdventureBot(**defaults)
@@ -223,26 +222,15 @@ class TestSessionManagement(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Session key (per-user vs shared mode)
+# Session key
 # ---------------------------------------------------------------------------
 
 
 class TestSessionKey(unittest.TestCase):
-    def test_per_user_key_is_sender(self):
-        bot = make_bot(shared_mode=False)
+    def test_key_is_sender(self):
+        bot = make_bot()
         msg = make_msg(sender="Alice", channel_idx=1)
         self.assertEqual(bot._session_key(msg), "Alice")
-
-    def test_shared_key_is_channel(self):
-        bot = make_bot(shared_mode=True)
-        msg = make_msg(sender="Alice", channel_idx=2)
-        self.assertEqual(bot._session_key(msg), "channel_2")
-
-    def test_shared_different_users_same_session(self):
-        bot = make_bot(shared_mode=True)
-        msg_a = make_msg(sender="Alice", channel_idx=1)
-        msg_b = make_msg(sender="Bob", channel_idx=1)
-        self.assertEqual(bot._session_key(msg_a), bot._session_key(msg_b))
 
 
 # ---------------------------------------------------------------------------
@@ -439,37 +427,6 @@ class TestHandleMessage(unittest.TestCase):
     def test_unknown_message_produces_no_reply(self):
         self.bot.handle_message(make_msg(content="random chatter"))
         self.bot.mesh.send_message.assert_not_called()
-
-
-# ---------------------------------------------------------------------------
-# Shared mode behaviour
-# ---------------------------------------------------------------------------
-
-
-class TestSharedMode(unittest.TestCase):
-    def setUp(self):
-        self.bot = make_bot(shared_mode=True)
-        self.bot._call_ollama = MagicMock(return_value=None)
-        self.bot._call_openai = MagicMock(return_value=None)
-        self.bot._call_groq = MagicMock(return_value=None)
-
-    def test_two_users_same_channel_share_session(self):
-        self.bot.handle_message(make_msg(sender="Alice", content="!adv", channel_idx=1))
-        # Bob's session key should be the same channel key
-        key_a = self.bot._session_key(make_msg(sender="Alice", channel_idx=1))
-        key_b = self.bot._session_key(make_msg(sender="Bob", channel_idx=1))
-        self.assertEqual(key_a, key_b)
-
-    def test_shared_start_announces_who_started(self):
-        self.bot.handle_message(make_msg(sender="Alice", content="!adv fantasy", channel_idx=1))
-        reply = last_reply(self.bot)
-        self.assertIn("Alice", reply)
-
-    def test_shared_choice_announces_who_chose(self):
-        self.bot._update_session("channel_1", {"status": "active", "node": "start", "theme": "fantasy", "history": []})
-        self.bot.handle_message(make_msg(sender="Bob", content="2", channel_idx=1))
-        reply = last_reply(self.bot)
-        self.assertIn("Bob", reply)
 
 
 # ---------------------------------------------------------------------------

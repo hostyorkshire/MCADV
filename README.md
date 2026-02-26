@@ -135,44 +135,7 @@ The bot tries each backend in order and falls back to the next if unavailable.
 
 ---
 
-### Option 2 – Gameplay mode
-
-#### Per-user mode *(default)*
-
-Each player runs their **own independent adventure** in parallel.  When Alice
-types `!adv` and Bob types `!adv`, both get separate stories broadcast to the
-channel.  Good for: personal play, small groups.
-
-```
-Alice: !adv fantasy
-Bot:   You wake at a crossroads…  1:Take road 2:Forest 3:Camp
-Alice: 2
-Bot:   Ancient trees tower above…
-
-Bob: !adv scifi
-Bot:   Your colony ship drifts off course…
-```
-
-#### Shared mode (`--shared`)
-
-**One adventure per channel** – anyone can advance the story.  The first
-person to reply with `1`, `2`, or `3` sets the next chapter.  The bot
-announces who made each choice.  Good for: community play, radio drama feel.
-
-```
-Alice: !adv horror
-Bot:   🎲 Alice started a horror adventure!
-       You wake alone in an old manor…
-       1:Upstairs 2:Window 3:Cellar
-
-Bob:   2
-Bot:   Bob chose 2:
-       Outside: thick fog and silent figures…
-```
-
----
-
-### Option 3 – Story themes
+### Option 2 – Story themes
 
 Three built-in offline story trees are included.  The LLM can generate
 stories for any theme you type (`!adv pirate`, `!adv western`, etc.).
@@ -211,7 +174,6 @@ sudo systemctl start adventure_bot
 
 ```
 usage: adventure_bot.py [-h] [-p PORT] [-b BAUD] [-d] [-a] [-c CHANNEL_IDX]
-                        [--shared]
                         [--ollama-url OLLAMA_URL] [--model MODEL]
                         [--openai-key OPENAI_KEY] [--groq-key GROQ_KEY]
 
@@ -221,7 +183,6 @@ options:
   -d, --debug        Enable verbose debug output
   -a, --announce     Send a periodic announcement every 3 hours
   -c, --channel-idx  Only respond on this MeshCore channel index (e.g. 1)
-  --shared           Shared mode: one adventure per channel
   --ollama-url       Ollama base URL (default: http://localhost:11434)
   --model            Ollama model name (default: llama3.2:1b)
   --openai-key       OpenAI API key

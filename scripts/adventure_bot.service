@@ -39,12 +39,6 @@ StandardError=journal
 #   --openai-key sk_YOUR_KEY_HERE
 
 # -------------------------------------------------------------------------
-# GAMEPLAY MODE – add --shared to use one shared adventure per channel
-# -------------------------------------------------------------------------
-# ExecStart=/home/pi/MCADV/venv/bin/python3 /home/pi/MCADV/adventure_bot.py \
-#   --baud 115200 --channel-idx 1 --announce --shared
-
-# -------------------------------------------------------------------------
 # DEBUG – add -d to see verbose output in journalctl
 # -------------------------------------------------------------------------
 # ExecStart=/home/pi/MCADV/venv/bin/python3 /home/pi/MCADV/adventure_bot.py \
