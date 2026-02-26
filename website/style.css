@@ -171,10 +171,10 @@ body::before {
 }
 
 .scroll-text p:first-child::first-letter {
-    font-size: 4em;
+    font-size: 6em;
     line-height: 0.8;
     float: left;
-    margin: 5px 3px 0 0;
+    margin: 5px 8px 0 0;
     color: var(--text-gold);
     font-family: 'Cinzel', serif;
     font-weight: 700;
@@ -223,6 +223,27 @@ body::before {
     margin-top: 20px;
     font-size: 1.2em;
     text-indent: 0 !important;
+}
+
+.github-link {
+    text-align: right;
+    margin-top: 10px;
+    text-indent: 0 !important;
+}
+
+.github-link a {
+    color: var(--text-gold);
+    text-decoration: none;
+    font-size: 0.95em;
+    font-style: italic;
+    transition: all 0.3s ease;
+    border-bottom: 1px dotted var(--text-gold);
+}
+
+.github-link a:hover {
+    color: var(--text-light);
+    border-bottom: 1px solid var(--text-light);
+    text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
 }
 
 /* Footer decoration */
