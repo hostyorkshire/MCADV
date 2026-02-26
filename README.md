@@ -192,6 +192,24 @@ The bot tries Ollama first, then falls back to offline story trees if unavailabl
 
 📖 **See [guides/OLLAMA_SETUP.md](guides/OLLAMA_SETUP.md) for a comprehensive guide on setting up Ollama (local and LAN).**
 
+#### Quick Model Selection Guide
+
+**Best models for CYOA bot:**
+
+| Hardware | Recommended Model | Size | Speed | Quality |
+|----------|------------------|------|-------|---------|
+| **Pi 4/5 (4GB)** | `llama3.2:1b` | 1.3 GB | Fast (2-3s) | Good |
+| **Pi 5 (8GB)** | `llama3.2:3b` | 3.2 GB | Medium (4-6s) | Very Good |
+| **Jetson/PC (8GB+)** | `llama3.2:3b` or `llama3:8b` | 3.2-4.7 GB | Medium-Slow | Excellent |
+
+**Storage requirements:**
+- Small model: ~1-2 GB per model
+- Medium model: ~3-4 GB per model
+- Large model: ~5-8 GB per model
+- **239 GB SSD:** Plenty of space for all models + OS + data
+
+See [Storage Capacity Planning](guides/OLLAMA_SETUP.md#storage-capacity-planning) for detailed recommendations based on your available storage.
+
 ---
 
 ### Option 2 – Story themes
