@@ -1117,10 +1117,10 @@ If you encounter issues not covered in this guide:
 
 This guide covered:
 
-✅ Installing Ollama locally and on LAN  
-✅ Configuring MCADV to use Ollama  
-✅ Choosing the right model for your hardware  
-✅ Testing and troubleshooting your setup  
+✅ Installing Ollama locally and on LAN
+✅ Configuring MCADV to use Ollama
+✅ Choosing the right model for your hardware
+✅ Testing and troubleshooting your setup
 ✅ Performance tuning and security best practices
 
 **Quick Reference Commands:**
@@ -1140,3 +1140,4 @@ python3 adventure_bot.py \
 ```
 
 Happy adventuring! 🎲🗺️
+
