@@ -73,6 +73,11 @@ SESSION_FILE = Path(__file__).parent / "logs" / "sessions.json"
 SESSION_EXPIRY_SECONDS = 7200  # 2 hours of inactivity
 
 # ---------------------------------------------------------------------------
+# Collaborative mode messaging
+# ---------------------------------------------------------------------------
+COLLABORATIVE_MODE_TEXT = "collaborative adventure"
+
+# ---------------------------------------------------------------------------
 # LLM prompt
 # The prompt is deliberately terse so that even small/quantised models
 # produce something usable within the 160-char budget.
@@ -641,9 +646,9 @@ class AdventureBot:
             session = self._get_session(key)
             if session and session.get("status") == "active":
                 self._clear_session(key)
-                response = f"Story reset by {message.sender}. Type !adv to start a new collaborative adventure."
+                response = f"Story reset by {message.sender}. Type !adv to start a new {COLLABORATIVE_MODE_TEXT}."
             else:
-                response = "No active story. Type !adv to start a new collaborative adventure."
+                response = f"No active story. Type !adv to start a new {COLLABORATIVE_MODE_TEXT}."
 
         # ---- choice: 1, 2, or 3 ------------------------------------------
         elif content in ("1", "2", "3"):

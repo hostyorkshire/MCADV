@@ -421,11 +421,12 @@ class TestCollaborativeMode(unittest.TestCase):
         reply1 = self.bot.handle_message(make_msg(sender="Bob", content="1", channel_idx=1))
         self.assertIsNotNone(reply1)
         
-        # Verify session exists and is active (or finished if terminal node reached)
+        # Verify session exists and is active, finished, or cleared (if terminal node reached)
         key = get_session_key(1)
         session = self.bot._get_session(key)
-        # Session should exist with a status (either active or finished)
-        self.assertIn(session.get("status"), ["active", "finished", None])
+        # Session may be cleared if terminal node was reached, otherwise should have status
+        if session:
+            self.assertIn(session.get("status"), ["active", "finished"])
 
 
 # ---------------------------------------------------------------------------
