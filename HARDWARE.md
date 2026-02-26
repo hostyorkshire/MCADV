@@ -186,7 +186,30 @@ python3 adventure_bot.py --distributed-mode
 
 ---
 
-### Option 4: Mini PC / NUC ⭐⭐⭐ MAXIMUM POWER
+### Option 4: Orange Pi 5 Plus / Rock 5B (Budget Alternative)
+
+**Orange Pi 5 Plus Specs:**
+- 8-core RK3588 (4x Cortex-A76 + 4x Cortex-A55)
+- Up to 16GB RAM
+- NPU with 6 TOPS
+- PCIe 3.0 M.2 slot
+- ~$150
+
+**Pros:**
+- ✅ More RAM than Pi 5 (up to 16GB)
+- ✅ NPU for AI acceleration
+- ✅ Better CPU performance than Pi 5
+- ✅ Affordable
+- ✅ Low power (~15W)
+
+**Cons:**
+- ❌ Less mature software ecosystem
+- ❌ Ollama support varies
+- ❌ Community support smaller
+
+---
+
+### Option 5: Mini PC / NUC ⭐⭐⭐ MAXIMUM POWER
 
 **Intel NUC 13 Pro / AMD Ryzen Mini PC:**
 - Intel Core i5/i7 or AMD Ryzen 5/7
@@ -208,29 +231,6 @@ python3 adventure_bot.py --distributed-mode
 - ❌ Requires wall power
 
 **Best For:** Home server, multiple bots, experimentation, maximum capability
-
----
-
-### Option 4: Orange Pi 5 Plus / Rock 5B (Budget Alternative)
-
-**Orange Pi 5 Plus Specs:**
-- 8-core RK3588 (4x Cortex-A76 + 4x Cortex-A55)
-- Up to 16GB RAM
-- NPU with 6 TOPS
-- PCIe 3.0 M.2 slot
-- ~$150
-
-**Pros:**
-- ✅ More RAM than Pi 5 (up to 16GB)
-- ✅ NPU for AI acceleration
-- ✅ Better CPU performance than Pi 5
-- ✅ Affordable
-- ✅ Low power (~15W)
-
-**Cons:**
-- ❌ Less mature software ecosystem
-- ❌ Ollama support varies
-- ❌ Community support smaller
 
 ---
 

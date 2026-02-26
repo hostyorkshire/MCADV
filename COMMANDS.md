@@ -1,15 +1,15 @@
 # Command Handling
 
-## Supported Command
+## Supported Commands
 
-The only command supported for starting a new collaborative adventure is:
+The command supported for starting a new collaborative adventure is:
 
 `!start [theme]`
 
 ## Available Themes
 - fantasy
 - medieval
-- scifi
+- scifi (also sci-fi or science fiction)
 - horror
 - dark_fantasy
 - urban_fantasy
@@ -42,5 +42,8 @@ The only command supported for starting a new collaborative adventure is:
 - fairy_tale
 - mythology
 
+**Note:** When referencing themes in commands, use underscores (e.g., `dark_fantasy`) rather than spaces.
+
 ## Note
-Support for the `!adv` command has been completely removed, and all user-facing help texts and documentation have been updated accordingly.
+
+Support for the `!adv` command has been completely removed to simplify the command interface. All user-facing help texts and documentation have been updated accordingly. Users should now use `!start [theme]` exclusively to begin new adventures.
