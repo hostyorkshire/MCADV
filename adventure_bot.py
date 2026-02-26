@@ -10,11 +10,9 @@ Commands (send on the configured channel):
   !quit / !end   - End your current adventure
   !help          - Show available commands
 
-LLM backends (tried in order, falls back to built-in story trees):
-  1. Ollama  - self-hosted LLM via --ollama-url (can be remote on your network)
-  2. OpenAI  - via --openai-key or $OPENAI_API_KEY
-  3. Groq    - via --groq-key or $GROQ_API_KEY  (free tier available)
-  4. Offline - built-in branching story trees, no internet required
+LLM backend:
+  1. Ollama  - local self-hosted LLM via --ollama-url (can be on your network)
+  2. Offline - built-in branching story trees, no internet required
 
 Messages longer than 200 characters are split across multiple LoRa transmissions.
 """
@@ -355,21 +353,13 @@ class AdventureBot:
         announce: bool = False,
         ollama_url: str = "http://localhost:11434",
         model: str = "llama3.2:1b",
-        openai_key: Optional[str] = None,
-        groq_key: Optional[str] = None,
-        distributed_mode: bool = False,
-        http_port: int = 5000,
-        http_host: str = "0.0.0.0",
+
     ):
         self.allowed_channel_idx = allowed_channel_idx
         self.announce = announce
         self.ollama_url = ollama_url.rstrip("/")
         self.model = model
-        self.openai_key = openai_key or os.environ.get("OPENAI_API_KEY")
-        self.groq_key = groq_key or os.environ.get("GROQ_API_KEY")
-        self.distributed_mode = distributed_mode
-        self.http_port = http_port
-        self.http_host = http_host
+
         self._running = False
 
         # Logging
@@ -611,80 +601,6 @@ class AdventureBot:
             self.logger.debug(f"Ollama unavailable: {e}")
             return None
 
-    def _call_openai(self, prompt: str) -> Optional[str]:
-        """
-        Call the OpenAI chat completions API (gpt-3.5-turbo).
-
-        Set --openai-key or $OPENAI_API_KEY.  Each request costs a small
-        number of tokens (~150 input + ~80 output = ~230 tokens ≈ $0.0002
-        with gpt-3.5-turbo as of 2025).
-        Returns the generated text or None on any failure.
-        """
-        if not self.openai_key:
-            return None
-        requests, RequestException = _ensure_requests()
-        if requests is None:
-            return None
-        session = self._get_http_session()
-        if session is None:
-            return None
-        try:
-            resp = session.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={"Authorization": f"Bearer {self.openai_key}", "Content-Type": "application/json"},
-                json={
-                    "model": "gpt-3.5-turbo",
-                    "messages": [
-                        {"role": "system", "content": STORY_SYSTEM_PROMPT},
-                        {"role": "user", "content": prompt},
-                    ],
-                    "max_tokens": 80,
-                    "temperature": 0.8,
-                },
-                timeout=30,
-            )
-            resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"].strip() or None
-        except (RequestException, KeyError, ValueError) as e:
-            self.logger.debug(f"OpenAI unavailable: {e}")
-            return None
-
-    def _call_groq(self, prompt: str) -> Optional[str]:
-        """
-        Call the Groq cloud inference API (llama3-8b-8192 by default).
-
-        Groq offers a generous free tier.  Set --groq-key or $GROQ_API_KEY.
-        Returns the generated text or None on any failure.
-        """
-        if not self.groq_key:
-            return None
-        requests, RequestException = _ensure_requests()
-        if requests is None:
-            return None
-        session = self._get_http_session()
-        if session is None:
-            return None
-        try:
-            resp = session.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"},
-                json={
-                    "model": "llama3-8b-8192",
-                    "messages": [
-                        {"role": "system", "content": STORY_SYSTEM_PROMPT},
-                        {"role": "user", "content": prompt},
-                    ],
-                    "max_tokens": 80,
-                    "temperature": 0.8,
-                },
-                timeout=30,
-            )
-            resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"].strip() or None
-        except (RequestException, KeyError, ValueError) as e:
-            self.logger.debug(f"Groq unavailable: {e}")
-            return None
-
     # ------------------------------------------------------------------
     # Offline fallback story tree
     # ------------------------------------------------------------------
@@ -719,9 +635,8 @@ class AdventureBot:
         """
         Generate the next story segment.
 
-        Tries Ollama → OpenAI → Groq in order, then falls back to the
-        built-in offline story tree.  choice=None starts a new adventure;
-        "1"/"2"/"3" continues an existing one.
+        Tries Ollama first, then falls back to the built-in offline story tree.
+        choice=None starts a new adventure; "1"/"2"/"3" continues an existing one.
         """
         session = self._get_session(key)
         history: List[str] = session.get("history", [])
@@ -741,7 +656,7 @@ class AdventureBot:
             prompt = f"Story so far: {history_str}. Player chose: {choice_text}. Continue."
             new_history = history + [f"chose {choice}"]
 
-        story = self._call_ollama(prompt) or self._call_openai(prompt) or self._call_groq(prompt)
+        story = self._call_ollama(prompt)
 
         if story:
             is_terminal = "THE END" in story.upper()
@@ -752,8 +667,8 @@ class AdventureBot:
             })
             return story
 
-        # All LLM backends unavailable – use built-in story tree
-        self.logger.info(f"LLM unavailable, using offline story tree for session {key!r}")
+        # Ollama unavailable – use built-in story tree
+        self.logger.info(f"Ollama unavailable, using offline story tree for session {key!r}")
         return self._get_fallback_story(key, choice, theme)
 
     # ------------------------------------------------------------------
@@ -953,6 +868,90 @@ class AdventureBot:
             print("MCADV stopped.")
             self.logger.info("MCADV stopped.")
 
+    def run_terminal(self) -> None:
+        """
+        Run the bot in terminal mode for testing/playing without LoRa hardware.
+        
+        This mode allows you to interact with the adventure bot directly from the
+        command line. All commands work the same as on the radio network:
+        - !adv [theme] - Start a new adventure
+        - 1/2/3 - Make choices
+        - !quit - End your adventure
+        - !help - Show help
+        - !status - Check your adventure status
+        """
+        log_startup_info(self.logger, "MCADV Adventure Bot (Terminal Mode)", "1.0.0")
+        
+        print("\n" + "=" * 70)
+        print("  MCADV - Choose Your Own Adventure (Terminal Mode)")
+        print("=" * 70)
+        print("\nWelcome! You can test and play adventures from the terminal.")
+        print("\nAvailable commands:")
+        print("  !adv [theme]  - Start a new adventure (themes: fantasy, scifi, horror)")
+        print("  !start [theme]- Alias for !adv")
+        print("  1 / 2 / 3     - Make a choice")
+        print("  !status       - Show your current adventure state")
+        print("  !quit         - End your adventure")
+        print("  !help         - Show help")
+        print("  exit          - Exit terminal mode")
+        print("\nType '!adv' to begin your adventure!")
+        print("=" * 70 + "\n")
+        
+        self._running = True
+        
+        # Create a fake message for terminal mode - sender is "Terminal"
+        terminal_channel = 0
+        
+        # Store terminal replies to display
+        terminal_replies = []
+        
+        def terminal_send_message(text: str, msg_type: str = "text", channel_idx: int = 0):
+            """Capture outgoing messages and display them in terminal"""
+            terminal_replies.append(text)
+        
+        # Replace mesh.send_message with our terminal handler
+        original_send = self.mesh.send_message
+        self.mesh.send_message = terminal_send_message
+        
+        try:
+            while self._running:
+                # Display any pending replies from the bot
+                while terminal_replies:
+                    reply = terminal_replies.pop(0)
+                    print(f"\n📖 {reply}\n")
+                
+                # Get user input
+                try:
+                    user_input = input("You> ").strip()
+                except EOFError:
+                    # Handle Ctrl+D
+                    break
+                
+                if not user_input:
+                    continue
+                
+                # Check for exit command
+                if user_input.lower() == "exit":
+                    break
+                
+                # Create a fake MeshCoreMessage from terminal input
+                msg = MeshCoreMessage(
+                    sender="Terminal",
+                    content=user_input,
+                    channel_idx=terminal_channel,
+                )
+                
+                # Process the message through the normal handler
+                self.handle_message(msg)
+                
+        except KeyboardInterrupt:
+            print("\n\nExiting terminal mode...")
+        finally:
+            self._running = False
+            self._save_sessions(force=True)
+            self.mesh.send_message = original_send  # Restore original
+            print("\nGoodbye! Thanks for playing MCADV.\n")
+
 
 # ---------------------------------------------------------------------------
 # CLI entry point
@@ -964,18 +963,19 @@ def main() -> None:
         description="MCADV – MeshCore Choose Your Own Adventure Bot",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-LLM backends (tried in order until one succeeds):
-  1. Ollama  – local/remote server via --ollama-url  (e.g. http://192.168.1.x:11434)
-  2. OpenAI  – set --openai-key or $OPENAI_API_KEY
-  3. Groq    – set --groq-key   or $GROQ_API_KEY  (free tier available)
-  4. Offline – built-in story trees, no internet needed
+LLM backend (tries in order until one succeeds):
+  1. Ollama  – local/LAN server via --ollama-url  (e.g. http://192.168.1.x:11434)
+  2. Offline – built-in story trees, no internet needed
 
 Story themes:  fantasy (default)  scifi  horror
 
 Examples:
+  # Terminal mode (no radio hardware needed):
+  python adventure_bot.py --terminal
+  
+  # Radio mode (requires LoRa hardware):
   python adventure_bot.py -p /dev/ttyUSB0 --channel-idx 1
   python adventure_bot.py -p /dev/ttyUSB0 --ollama-url http://192.168.1.50:11434
-  python adventure_bot.py -p /dev/ttyUSB0 --groq-key gsk_...
   python adventure_bot.py -p /dev/ttyUSB0 --announce
 """,
     )
@@ -983,6 +983,12 @@ Examples:
     parser.add_argument("-b", "--baud", type=int, default=115200, help="Baud rate (default: 115200)")
     parser.add_argument("-d", "--debug", action="store_true", help="Enable debug output")
     parser.add_argument("-a", "--announce", action="store_true", help="Send periodic announcements every 3 hours")
+    parser.add_argument(
+        "-t",
+        "--terminal",
+        action="store_true",
+        help="Run in terminal mode (no radio hardware needed, for testing/playing)",
+    )
     parser.add_argument(
         "-c",
         "--channel-idx",
@@ -999,32 +1005,7 @@ Examples:
         default=os.environ.get("OLLAMA_MODEL", "llama3.2:1b"),
         help="Ollama model name (default: llama3.2:1b or $OLLAMA_MODEL)",
     )
-    parser.add_argument(
-        "--openai-key",
-        default=os.environ.get("OPENAI_API_KEY"),
-        help="OpenAI API key (or set $OPENAI_API_KEY)",
-    )
-    parser.add_argument(
-        "--groq-key",
-        default=os.environ.get("GROQ_API_KEY"),
-        help="Groq API key for free cloud inference (or set $GROQ_API_KEY)",
-    )
-    parser.add_argument(
-        "--distributed-mode",
-        action="store_true",
-        help="Run as HTTP server for distributed architecture (no direct radio connection)",
-    )
-    parser.add_argument(
-        "--http-port",
-        type=int,
-        default=5000,
-        help="HTTP server port for distributed mode (default: 5000)",
-    )
-    parser.add_argument(
-        "--http-host",
-        default="0.0.0.0",
-        help="HTTP server host for distributed mode (default: 0.0.0.0 for all interfaces)",
-    )
+
     args = parser.parse_args()
 
     bot = AdventureBot(
@@ -1035,13 +1016,14 @@ Examples:
         announce=args.announce,
         ollama_url=args.ollama_url,
         model=args.model,
-        openai_key=args.openai_key,
-        groq_key=args.groq_key,
-        distributed_mode=args.distributed_mode,
-        http_port=args.http_port,
-        http_host=args.http_host,
+
     )
-    bot.run()
+    
+    # Run in terminal mode or radio mode
+    if args.terminal:
+        bot.run_terminal()
+    else:
+        bot.run()
 
 
 if __name__ == "__main__":

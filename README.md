@@ -58,6 +58,28 @@ Player → LoRa → Pi Zero 2W → HTTP → Pi 4/5 (adventure_bot.py) → HTTP �
 
 ## Quick start
 
+### Terminal Mode (Testing & Playing without Hardware)
+
+Try MCADV from your terminal without any radio hardware:
+
+```bash
+git clone https://github.com/hostyorkshire/MCADV
+cd MCADV
+python3 -m venv venv
+venv/bin/pip install -r requirements.txt
+venv/bin/python3 adventure_bot.py --terminal
+```
+
+This opens an interactive terminal session where you can test all commands and play through adventures. Perfect for:
+- Testing the bot before deploying to hardware
+- Playing adventures offline
+- Development and debugging
+- Learning how the bot works
+
+### Radio Mode (Deployment)
+
+For production deployment on LoRa mesh network:
+
 ```bash
 git clone https://github.com/hostyorkshire/MCADV
 cd MCADV
@@ -118,15 +140,12 @@ See **[HARDWARE.md](HARDWARE.md)** for complete hardware recommendations includi
 
 ### Option 1 – LLM backend
 
-The bot tries each backend in order and falls back to the next if unavailable.
+The bot tries Ollama first, then falls back to offline story trees if unavailable.
 
 | Priority | Backend | How to enable | Cost | Needs internet? |
 |----------|---------|--------------|------|----------------|
-| 1 | **Remote LLM Server** | `--llm-server-url http://pi5.local:5000` | Free | No (LAN only) |
-| 2 | **Ollama (local/LAN)** | `--ollama-url http://<host>:11434 --model llama3.2:1b` | Free | No (LAN only) |
-| 3 | **OpenAI** | `--openai-key sk_…` or `$OPENAI_API_KEY` | ~$0.0002/turn | Yes |
-| 4 | **Groq** | `--groq-key gsk_…` or `$GROQ_API_KEY` | Free tier | Yes |
-| 5 | **Offline story trees** | *(automatic fallback, always available)* | Free | No |
+| 1 | **Ollama (local/LAN)** | `--ollama-url http://<host>:11434 --model llama3.2:1b` | Free | No (LAN only) |
+| 2 | **Offline story trees** | *(automatic fallback, always available)* | Free | No |
 
 #### Choosing an LLM backend
 
@@ -140,8 +159,6 @@ The bot tries each backend in order and falls back to the next if unavailable.
 **For Pi 4/5 (current implementation):**
 - **Ollama on same device** – Pi 4/5 with 4GB+ RAM can run small models
 - **Ollama on your LAN** – run `ollama serve` on a laptop, desktop, or another Pi
-- **Groq free tier** – very fast cloud inference, generous free quota
-- **OpenAI** – reliable, small cost per adventure
 - **No LLM / offline** – three fully self-contained story trees (fantasy, sci-fi, horror)
 - **Storage:** SSD via USB recommended for model storage (2-8GB per model)
 
@@ -168,6 +185,51 @@ stories for any theme you type (`!adv pirate`, `!adv western`, etc.).
 ---
 
 ## Installation
+
+### Terminal Mode (No Hardware Required)
+
+Test and play adventures directly from your terminal without any radio hardware:
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/hostyorkshire/MCADV
+cd MCADV
+
+# 2. Set up Python environment
+python3 -m venv venv
+venv/bin/pip install -r requirements.txt
+
+# 3. Run in terminal mode
+venv/bin/python3 adventure_bot.py --terminal
+
+# Or with debug output
+venv/bin/python3 adventure_bot.py --terminal --debug
+```
+
+**Terminal mode features:**
+- ✅ No radio hardware needed
+- ✅ Works on any Python 3.7+ system (Linux, macOS, Windows)
+- ✅ All story themes available (fantasy, scifi, horror)
+- ✅ Full LLM support (Ollama, offline)
+- ✅ Perfect for development, testing, and just playing
+
+**Example session:**
+```
+$ python3 adventure_bot.py --terminal
+
+======================================================================
+  MCADV - Choose Your Own Adventure (Terminal Mode)
+======================================================================
+Type '!adv' to begin your adventure!
+
+You> !adv
+📖 You wake at a crossroads at dusk. Strange sounds fill the air.
+1:Take the road 2:Enter forest 3:Make camp
+
+You> 1
+📖 A bridge ahead. A troll demands: 'Pay or fight!'
+1:Pay the toll 2:Fight him 3:Sneak past
+```
 
 ### On Raspberry Pi 4/5 (Recommended)
 
@@ -276,44 +338,30 @@ sudo journalctl -u mcadv_bot_server -f
 ### adventure_bot.py (Bot Server)
 
 ```
-usage: adventure_bot.py [-h] [-p PORT] [-b BAUD] [-d] [-a] [-c CHANNEL_IDX]
+usage: adventure_bot.py [-h] [-p PORT] [-b BAUD] [-d] [-a] [-t] [-c CHANNEL_IDX]
                         [--ollama-url OLLAMA_URL] [--model MODEL]
-                        [--openai-key OPENAI_KEY] [--groq-key GROQ_KEY]
-                        [--distributed-mode] [--http-port HTTP_PORT] 
-                        [--http-host HTTP_HOST]
-
-options:
-  -p, --port              Serial port (e.g. /dev/ttyUSB0). Not used in distributed mode.
-  -b, --baud              Baud rate (default: 115200)
-  -d, --debug             Enable verbose debug output
-  -a, --announce          Send periodic announcements every 3 hours (direct mode only)
-  -c, --channel-idx       Only respond on this MeshCore channel index (e.g. 1)
-  --ollama-url            Ollama base URL (default: http://localhost:11434)
-  --model                 Ollama model name (default: llama3.2:1b)
-  --openai-key            OpenAI API key
-  --groq-key              Groq API key
-  --distributed-mode      Run as HTTP server (no direct radio connection)
-  --http-port             HTTP server port (default: 5000)
-  --http-host             HTTP server host (default: 0.0.0.0)
-```
-
-### radio_gateway.py (Radio Gateway)
 
 ```
-usage: radio_gateway.py [-h] --bot-server-url URL [-p PORT] [-b BAUD] [-d]
-                        [-c CHANNEL_IDX] [--node-id NODE_ID] [--timeout TIMEOUT]
 
-options:
-  --bot-server-url        Bot server URL (required, e.g. http://pi5.local:5000)
-  -p, --port              Serial port (e.g. /dev/ttyUSB0). Auto-detects if omitted.
-  -b, --baud              Baud rate (default: 115200)
-  -d, --debug             Enable verbose debug output
-  -c, --channel-idx       Only forward messages from this channel index
-  --node-id               MeshCore node identifier (default: GATEWAY)
-  --timeout               HTTP request timeout in seconds (default: 30)
+Environment variables: `OLLAMA_URL`, `OLLAMA_MODEL`
+
+**Examples:**
+```bash
+# Terminal mode (no hardware)
+python adventure_bot.py --terminal
+
+# Radio mode with auto-detected port
+python adventure_bot.py --channel-idx 1
+
+# Radio mode with specific port
+python adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1 --debug
+
+# With Ollama LLM on local network
+python adventure_bot.py --terminal --ollama-url http://192.168.1.50:11434
+
+# With specific Ollama model
+python adventure_bot.py --terminal --model llama3.2:3b
 ```
-
-Environment variables: `OLLAMA_URL`, `OLLAMA_MODEL`, `OPENAI_API_KEY`, `GROQ_API_KEY`
 
 ---
 
@@ -358,7 +406,7 @@ meshcore.py  ─── _dispatch_channel_message() ──▶ handle_message()
                                           │           │           │
                                    _generate_story()  │     _clear_session()
                                    ┌──────┴──────┐    │
-                                 Ollama/OpenAI  Offline
+                                 Ollama         Offline
                                    └──────┬──────┘
                                           ▼
                                    mesh.send_message()  ──▶ LoRa radio
@@ -440,7 +488,17 @@ See [HARDWARE.md](HARDWARE.md) for complete hardware guide and setup instruction
 python -m unittest tests/test_adventure_bot.py -v
 ```
 
-62 tests, no radio hardware required.
+64 tests, no radio hardware required.
+
+**Interactive testing:**
+
+You can also test interactively using terminal mode:
+
+```bash
+python adventure_bot.py --terminal
+```
+
+This lets you play through adventures and verify all commands work correctly without needing any hardware.
 
 ---
 

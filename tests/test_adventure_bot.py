@@ -52,8 +52,6 @@ def make_bot(**kwargs) -> AdventureBot:
         announce=False,
         ollama_url="http://localhost:11434",
         model="test-model",
-        openai_key=None,
-        groq_key=None,
     )
     defaults.update(kwargs)
     bot = AdventureBot(**defaults)
@@ -311,8 +309,6 @@ class TestHandleMessage(unittest.TestCase):
         self.bot = make_bot()
         # Always use offline fallback so tests don't need network
         self.bot._call_ollama = MagicMock(return_value=None)
-        self.bot._call_openai = MagicMock(return_value=None)
-        self.bot._call_groq = MagicMock(return_value=None)
 
     # -- help --
 
@@ -417,8 +413,6 @@ class TestHandleMessage(unittest.TestCase):
     def test_no_filter_accepts_any_channel(self):
         bot = make_bot(allowed_channel_idx=None)
         bot._call_ollama = MagicMock(return_value=None)
-        bot._call_openai = MagicMock(return_value=None)
-        bot._call_groq = MagicMock(return_value=None)
         bot.handle_message(make_msg(content="!help", channel_idx=7))
         bot.mesh.send_message.assert_called_once()
 
@@ -445,26 +439,9 @@ class TestLLMIntegration(unittest.TestCase):
             result = self.bot._generate_story("Alice", choice=None, theme="fantasy")
         self.assertEqual(result, llm_text)
 
-    def test_openai_used_when_ollama_fails(self):
-        llm_text = "A dragon appears.\n1:Run 2:Fight 3:Hide"
+    def test_fallback_used_when_ollama_fails(self):
         with patch.object(self.bot, "_call_ollama", return_value=None):
-            with patch.object(self.bot, "_call_openai", return_value=llm_text):
-                result = self.bot._generate_story("Alice", choice=None, theme="fantasy")
-        self.assertEqual(result, llm_text)
-
-    def test_groq_used_when_ollama_and_openai_fail(self):
-        llm_text = "A wizard blocks the path.\n1:Parley 2:Charge 3:Sneak"
-        with patch.object(self.bot, "_call_ollama", return_value=None):
-            with patch.object(self.bot, "_call_openai", return_value=None):
-                with patch.object(self.bot, "_call_groq", return_value=llm_text):
-                    result = self.bot._generate_story("Alice", choice=None, theme="fantasy")
-        self.assertEqual(result, llm_text)
-
-    def test_fallback_used_when_all_llm_fail(self):
-        with patch.object(self.bot, "_call_ollama", return_value=None):
-            with patch.object(self.bot, "_call_openai", return_value=None):
-                with patch.object(self.bot, "_call_groq", return_value=None):
-                    result = self.bot._generate_story("Alice", choice=None, theme="fantasy")
+            result = self.bot._generate_story("Alice", choice=None, theme="fantasy")
         self.assertIn("crossroads", result)
 
     def test_the_end_marks_session_finished(self):
@@ -569,8 +546,6 @@ class TestMultiMessageIntegration(unittest.TestCase):
         """
         bot = make_bot()
         bot._call_ollama = MagicMock(return_value=None)
-        bot._call_openai = MagicMock(return_value=None)
-        bot._call_groq = MagicMock(return_value=None)
         
         # Create a long LLM response that exceeds MAX_MSG_LEN
         long_story = (
@@ -733,6 +708,81 @@ class TestMultiMessageIntegration(unittest.TestCase):
             total_transmission = f"{bot.mesh.node_id}: {content}"
             self.assertLessEqual(len(total_transmission), MAX_MSG_LEN,
                 "Each part must fit within LoRa payload limit")
+
+
+# ---------------------------------------------------------------------------
+# Terminal mode tests
+# ---------------------------------------------------------------------------
+
+
+class TestTerminalMode(unittest.TestCase):
+    """Test terminal mode functionality."""
+    
+    def test_terminal_mode_processes_messages(self):
+        """Test that terminal mode can process messages through handle_message."""
+        bot = make_bot()
+        captured_replies = []
+        
+        def capture_send(text: str, msg_type: str = "text", channel_idx: int = 0):
+            captured_replies.append(text)
+        
+        # Replace send_message with our capture function
+        bot.mesh.send_message = capture_send
+        
+        # Simulate !adv command
+        msg = MeshCoreMessage(sender="Terminal", content="!adv", channel_idx=0)
+        bot.handle_message(msg)
+        
+        # Should have received a story response
+        self.assertEqual(len(captured_replies), 1)
+        self.assertIn("1:", captured_replies[0])
+        self.assertIn("2:", captured_replies[0])
+        self.assertIn("3:", captured_replies[0])
+    
+    def test_terminal_mode_handles_choices(self):
+        """Test that terminal mode can handle player choices."""
+        bot = make_bot()
+        captured_replies = []
+        
+        def capture_send(text: str, msg_type: str = "text", channel_idx: int = 0):
+            captured_replies.append(text)
+        
+        bot.mesh.send_message = capture_send
+        
+        # Start an adventure
+        msg1 = MeshCoreMessage(sender="Terminal", content="!adv", channel_idx=0)
+        bot.handle_message(msg1)
+        
+        # Make a choice
+        msg2 = MeshCoreMessage(sender="Terminal", content="1", channel_idx=0)
+        bot.handle_message(msg2)
+        
+        # Should have two replies (start + choice)
+        self.assertEqual(len(captured_replies), 2)
+        # Both should contain choices (unless we hit a terminal node)
+        for reply in captured_replies:
+            self.assertTrue(len(reply) > 0)
+    
+    def test_terminal_mode_handles_themes(self):
+        """Test that terminal mode handles different themes."""
+        bot = make_bot()
+        
+        for theme in ["fantasy", "scifi", "horror"]:
+            captured_replies = []
+            
+            def capture_send(text: str, msg_type: str = "text", channel_idx: int = 0):
+                captured_replies.append(text)
+            
+            bot.mesh.send_message = capture_send
+            bot._sessions = {}  # Reset sessions
+            
+            # Start adventure with specific theme
+            msg = MeshCoreMessage(sender="Terminal", content=f"!adv {theme}", channel_idx=0)
+            bot.handle_message(msg)
+            
+            # Should receive a story
+            self.assertEqual(len(captured_replies), 1)
+            self.assertTrue(len(captured_replies[0]) > 0)
 
 
 if __name__ == "__main__":
