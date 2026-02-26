@@ -25,9 +25,15 @@ if [ "$EUID" -eq 0 ]; then
     exit 1
 fi
 
-# Install Python dependencies
+# Create Python virtual environment
+echo "Creating Python virtual environment..."
+python3 -m venv "$REPO_DIR/venv"
+echo -e "${GREEN}✓ Virtual environment created at $REPO_DIR/venv${NC}"
+echo ""
+
+# Install Python dependencies into the virtual environment
 echo "Installing Python dependencies..."
-pip3 install --user -r requirements.txt
+"$REPO_DIR/venv/bin/pip" install -r requirements.txt
 echo -e "${GREEN}✓ Dependencies installed${NC}"
 echo ""
 
@@ -85,10 +91,6 @@ echo "  Offline (default) – built-in story trees, no internet needed"
 echo "  Ollama (LAN)      – --ollama-url http://<server-ip>:11434"
 echo "  Groq (free cloud) – --groq-key gsk_..."
 echo "  OpenAI            – --openai-key sk_..."
-echo ""
-echo "Gameplay modes:"
-echo "  Per-user (default) – each player has their own adventure"
-echo "  Shared             – add --shared for one channel adventure"
 echo ""
 echo "Players on the channel can type:"
 echo "  !adv            – start a fantasy adventure"

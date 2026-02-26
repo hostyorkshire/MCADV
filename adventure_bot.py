@@ -16,10 +16,6 @@ LLM backends (tried in order, falls back to built-in story trees):
   3. Groq    - via --groq-key or $GROQ_API_KEY  (free tier available)
   4. Offline - built-in branching story trees, no internet required
 
-Gameplay modes:
-  Per-user (default) - each player has their own independent adventure
-  Shared (--shared)  - one adventure per channel; anyone can advance the story
-
 Messages longer than 200 characters are split across multiple LoRa transmissions.
 """
 
@@ -361,7 +357,6 @@ class AdventureBot:
         model: str = "llama3.2:1b",
         openai_key: Optional[str] = None,
         groq_key: Optional[str] = None,
-        shared_mode: bool = False,
     ):
         self.allowed_channel_idx = allowed_channel_idx
         self.announce = announce
@@ -369,13 +364,12 @@ class AdventureBot:
         self.model = model
         self.openai_key = openai_key or os.environ.get("OPENAI_API_KEY")
         self.groq_key = groq_key or os.environ.get("GROQ_API_KEY")
-        self.shared_mode = shared_mode
         self._running = False
 
         # Logging
         self.logger, self.error_logger = get_adventure_bot_logger(debug=debug)
 
-        # Per-user (or per-channel in shared mode) sessions
+        # Per-user sessions
         self._sessions: Dict = {}
         self._sessions_dirty = False  # Track if sessions need saving
         self._last_session_save = time.time()  # For batched saves
@@ -399,9 +393,7 @@ class AdventureBot:
     # ------------------------------------------------------------------
 
     def _session_key(self, message: MeshCoreMessage) -> str:
-        """Return the session key: sender in per-user mode, channel in shared mode."""
-        if self.shared_mode:
-            return f"channel_{message.channel_idx}"
+        """Return the session key: the message sender."""
         return message.sender
 
     def _send_reply(self, text: str, channel_idx: int) -> None:
@@ -558,7 +550,9 @@ class AdventureBot:
         Long messages will be split by _send_reply() when transmitted.
         """
         if not choices:
-          
+            return text
+        choice_line = " ".join(f"{i + 1}:{c}" for i, c in enumerate(choices))
+        return f"{text}\n{choice_line}"
     # ------------------------------------------------------------------
     # LLM backends
     # ------------------------------------------------------------------
@@ -792,10 +786,7 @@ class AdventureBot:
             self.logger.info(f"New adventure for {key!r}: theme={theme!r}")
             self._update_session(key, {"status": "active", "node": "start", "history": [], "theme": theme})
             story = self._generate_story(key, choice=None, theme=theme)
-            if self.shared_mode:
-                self._send_reply(f"🎲 {sender} started a {theme} adventure!\n{story}", channel_idx)
-            else:
-                self._send_reply(story, channel_idx)
+            self._send_reply(story, channel_idx)
             return
 
         # ---- !quit / !end ------------------------------------------------
@@ -813,10 +804,7 @@ class AdventureBot:
             theme = session.get("theme", "fantasy")
             self.logger.info(f"Session {key!r} chose option {content}")
             story = self._generate_story(key, choice=content, theme=theme)
-            if self.shared_mode:
-                self._send_reply(f"{sender} chose {content}:\n{story}", channel_idx)
-            else:
-                self._send_reply(story, channel_idx)
+            self._send_reply(story, channel_idx)
             if self._get_session(key).get("status") == "finished":
                 self._clear_session(key)
             return
@@ -842,11 +830,10 @@ class AdventureBot:
         self.mesh.start()
         self._running = True
 
-        mode_str = "shared channel" if self.shared_mode else "per-user"
         if self.allowed_channel_idx is not None:
-            msg = f"MCADV running ({mode_str} mode) on channel_idx={self.allowed_channel_idx}."
+            msg = f"MCADV running on channel_idx={self.allowed_channel_idx}."
         else:
-            msg = f"MCADV running ({mode_str} mode) on all channels. Type !adv to start."
+            msg = "MCADV running on all channels. Type !adv to start."
         print(msg)
         self.logger.info(msg)
         print("Press Ctrl+C to stop.\n", flush=True)
@@ -893,13 +880,12 @@ LLM backends (tried in order until one succeeds):
   4. Offline – built-in story trees, no internet needed
 
 Story themes:  fantasy (default)  scifi  horror
-Gameplay modes: per-user (default)  --shared (one adventure per channel)
 
 Examples:
   python adventure_bot.py -p /dev/ttyUSB0 --channel-idx 1
   python adventure_bot.py -p /dev/ttyUSB0 --ollama-url http://192.168.1.50:11434
   python adventure_bot.py -p /dev/ttyUSB0 --groq-key gsk_...
-  python adventure_bot.py -p /dev/ttyUSB0 --shared --announce
+  python adventure_bot.py -p /dev/ttyUSB0 --announce
 """,
     )
     parser.add_argument("-p", "--port", help="Serial port (e.g. /dev/ttyUSB0). Auto-detects if omitted.")
@@ -911,11 +897,6 @@ Examples:
         "--channel-idx",
         type=int,
         help="Only respond to messages from this channel index (e.g. 1 for #adventure)",
-    )
-    parser.add_argument(
-        "--shared",
-        action="store_true",
-        help="Shared mode: one adventure per channel, any user can advance the story",
     )
     parser.add_argument(
         "--ollama-url",
@@ -949,7 +930,6 @@ Examples:
         model=args.model,
         openai_key=args.openai_key,
         groq_key=args.groq_key,
-        shared_mode=args.shared,
     )
     bot.run()
 
