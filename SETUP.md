@@ -14,7 +14,27 @@ A virtual environment (VENV) provides:
 
 ### 1. Initial Setup (First Time Only)
 
-Run the setup script to create the virtual environment and install all dependencies:
+#### Option A: Interactive Setup (Recommended for New Users)
+
+Run the interactive menu-driven setup script that will guide you through the entire configuration:
+
+```bash
+./full_setup.sh
+```
+
+This interactive script will:
+- Create a Python virtual environment in `venv/`
+- Install all dependencies from `requirements.txt`
+- Detect and configure serial port settings
+- Set up channel restrictions
+- Configure LLM backend (Offline or Ollama)
+- Configure bot behavior (announcements, debug logging)
+- Optionally install as a systemd service
+- Test your configuration
+
+#### Option B: Manual Setup
+
+For advanced users who prefer manual configuration:
 
 ```bash
 ./setup_venv.sh
@@ -241,6 +261,7 @@ python3 -m unittest discover tests
 
 | Script | Purpose |
 |--------|---------|
+| `full_setup.sh` | **Interactive menu-driven setup** - guides you through complete configuration (recommended for new users) |
 | `setup_venv.sh` | Create virtual environment and install dependencies |
 | `activate_venv.sh` | Activate virtual environment (use with `source`) |
 | `run_adventure_bot.sh` | Run adventure bot with venv activated |
