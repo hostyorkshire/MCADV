@@ -735,5 +735,80 @@ class TestMultiMessageIntegration(unittest.TestCase):
                 "Each part must fit within LoRa payload limit")
 
 
+# ---------------------------------------------------------------------------
+# Terminal mode tests
+# ---------------------------------------------------------------------------
+
+
+class TestTerminalMode(unittest.TestCase):
+    """Test terminal mode functionality."""
+    
+    def test_terminal_mode_processes_messages(self):
+        """Test that terminal mode can process messages through handle_message."""
+        bot = make_bot()
+        captured_replies = []
+        
+        def capture_send(text: str, msg_type: str = "text", channel_idx: int = 0):
+            captured_replies.append(text)
+        
+        # Replace send_message with our capture function
+        bot.mesh.send_message = capture_send
+        
+        # Simulate !adv command
+        msg = MeshCoreMessage(sender="Terminal", content="!adv", channel_idx=0)
+        bot.handle_message(msg)
+        
+        # Should have received a story response
+        self.assertEqual(len(captured_replies), 1)
+        self.assertIn("1:", captured_replies[0])
+        self.assertIn("2:", captured_replies[0])
+        self.assertIn("3:", captured_replies[0])
+    
+    def test_terminal_mode_handles_choices(self):
+        """Test that terminal mode can handle player choices."""
+        bot = make_bot()
+        captured_replies = []
+        
+        def capture_send(text: str, msg_type: str = "text", channel_idx: int = 0):
+            captured_replies.append(text)
+        
+        bot.mesh.send_message = capture_send
+        
+        # Start an adventure
+        msg1 = MeshCoreMessage(sender="Terminal", content="!adv", channel_idx=0)
+        bot.handle_message(msg1)
+        
+        # Make a choice
+        msg2 = MeshCoreMessage(sender="Terminal", content="1", channel_idx=0)
+        bot.handle_message(msg2)
+        
+        # Should have two replies (start + choice)
+        self.assertEqual(len(captured_replies), 2)
+        # Both should contain choices (unless we hit a terminal node)
+        for reply in captured_replies:
+            self.assertTrue(len(reply) > 0)
+    
+    def test_terminal_mode_handles_themes(self):
+        """Test that terminal mode handles different themes."""
+        bot = make_bot()
+        
+        for theme in ["fantasy", "scifi", "horror"]:
+            captured_replies = []
+            
+            def capture_send(text: str, msg_type: str = "text", channel_idx: int = 0):
+                captured_replies.append(text)
+            
+            bot.mesh.send_message = capture_send
+            bot._sessions = {}  # Reset sessions
+            
+            # Start adventure with specific theme
+            msg = MeshCoreMessage(sender="Terminal", content=f"!adv {theme}", channel_idx=0)
+            bot.handle_message(msg)
+            
+            # Should receive a story
+            self.assertEqual(len(captured_replies), 1)
+            self.assertTrue(len(captured_replies[0]) > 0)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

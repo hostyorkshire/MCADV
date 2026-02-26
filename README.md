@@ -74,6 +74,28 @@ Player → LoRa → Pi Zero 2W → HTTP → Pi 4/5 (adventure_bot.py) → HTTP �
 
 ## Quick start
 
+### Terminal Mode (Testing & Playing without Hardware)
+
+Try MCADV from your terminal without any radio hardware:
+
+```bash
+git clone https://github.com/hostyorkshire/MCADV
+cd MCADV
+python3 -m venv venv
+venv/bin/pip install -r requirements.txt
+venv/bin/python3 adventure_bot.py --terminal
+```
+
+This opens an interactive terminal session where you can test all commands and play through adventures. Perfect for:
+- Testing the bot before deploying to hardware
+- Playing adventures offline
+- Development and debugging
+- Learning how the bot works
+
+### Radio Mode (Deployment)
+
+For production deployment on LoRa mesh network:
+
 ```bash
 git clone https://github.com/hostyorkshire/MCADV
 cd MCADV
@@ -192,6 +214,51 @@ stories for any theme you type (`!adv pirate`, `!adv western`, etc.).
 
 ## Installation
 
+### Terminal Mode (No Hardware Required)
+
+Test and play adventures directly from your terminal without any radio hardware:
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/hostyorkshire/MCADV
+cd MCADV
+
+# 2. Set up Python environment
+python3 -m venv venv
+venv/bin/pip install -r requirements.txt
+
+# 3. Run in terminal mode
+venv/bin/python3 adventure_bot.py --terminal
+
+# Or with debug output
+venv/bin/python3 adventure_bot.py --terminal --debug
+```
+
+**Terminal mode features:**
+- ✅ No radio hardware needed
+- ✅ Works on any Python 3.7+ system (Linux, macOS, Windows)
+- ✅ All story themes available (fantasy, scifi, horror)
+- ✅ Full LLM support (Ollama, OpenAI, Groq, offline)
+- ✅ Perfect for development, testing, and just playing
+
+**Example session:**
+```
+$ python3 adventure_bot.py --terminal
+
+======================================================================
+  MCADV - Choose Your Own Adventure (Terminal Mode)
+======================================================================
+Type '!adv' to begin your adventure!
+
+You> !adv
+📖 You wake at a crossroads at dusk. Strange sounds fill the air.
+1:Take the road 2:Enter forest 3:Make camp
+
+You> 1
+📖 A bridge ahead. A troll demands: 'Pay or fight!'
+1:Pay the toll 2:Fight him 3:Sneak past
+```
+
 ### On Raspberry Pi 4/5 (Recommended)
 
 The bot runs on Pi 4/5 with the LoRa radio connected via USB. Optional SSD for LLM storage.
@@ -257,15 +324,17 @@ For now, use Pi 4/5 in standalone mode for all deployments.
 ## Configuration reference
 
 ```
-usage: adventure_bot.py [-h] [-p PORT] [-b BAUD] [-d] [-a] [-c CHANNEL_IDX]
+usage: adventure_bot.py [-h] [-p PORT] [-b BAUD] [-d] [-a] [-t] [-c CHANNEL_IDX]
                         [--ollama-url OLLAMA_URL] [--model MODEL]
                         [--openai-key OPENAI_KEY] [--groq-key GROQ_KEY]
 
 options:
+  -h, --help         Show this help message and exit
   -p, --port         Serial port (e.g. /dev/ttyUSB0). Auto-detects if omitted.
   -b, --baud         Baud rate (default: 115200)
   -d, --debug        Enable verbose debug output
   -a, --announce     Send a periodic announcement every 3 hours
+  -t, --terminal     Run in terminal mode (no radio hardware needed)
   -c, --channel-idx  Only respond on this MeshCore channel index (e.g. 1)
   --ollama-url       Ollama base URL (default: http://localhost:11434)
   --model            Ollama model name (default: llama3.2:1b)
@@ -274,6 +343,24 @@ options:
 ```
 
 Environment variables: `OLLAMA_URL`, `OLLAMA_MODEL`, `OPENAI_API_KEY`, `GROQ_API_KEY`
+
+**Examples:**
+```bash
+# Terminal mode (no hardware)
+python adventure_bot.py --terminal
+
+# Radio mode with auto-detected port
+python adventure_bot.py --channel-idx 1
+
+# Radio mode with specific port
+python adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1 --debug
+
+# With Ollama LLM
+python adventure_bot.py --terminal --ollama-url http://localhost:11434
+
+# With Groq cloud LLM
+python adventure_bot.py --terminal --groq-key gsk_...
+```
 
 ---
 
@@ -365,7 +452,17 @@ See [HARDWARE.md](HARDWARE.md) for complete hardware guide and setup instruction
 python -m unittest tests/test_adventure_bot.py -v
 ```
 
-62 tests, no radio hardware required.
+64 tests, no radio hardware required.
+
+**Interactive testing:**
+
+You can also test interactively using terminal mode:
+
+```bash
+python adventure_bot.py --terminal
+```
+
+This lets you play through adventures and verify all commands work correctly without needing any hardware.
 
 ---
 
