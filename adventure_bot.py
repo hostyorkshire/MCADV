@@ -1,0 +1,822 @@
+#!/usr/bin/env python3
+"""
+MCADV - MeshCore Adventure Bot
+AI-powered Choose Your Own Adventure bot for the MeshCore LoRa network.
+
+Commands (send on the configured channel):
+  !adv [theme]   - Start a new adventure (themes: fantasy, scifi, horror)
+  !start [theme] - Alias for !adv
+  1 / 2 / 3      - Make a choice in your current adventure
+  !quit / !end   - End your current adventure
+  !help          - Show available commands
+
+LLM backends (tried in order, falls back to built-in story trees):
+  1. Ollama  - self-hosted LLM via --ollama-url (can be remote on your network)
+  2. OpenAI  - via --openai-key or $OPENAI_API_KEY
+  3. Groq    - via --groq-key or $GROQ_API_KEY  (free tier available)
+  4. Offline - built-in branching story trees, no internet required
+
+Gameplay modes:
+  Per-user (default) - each player has their own independent adventure
+  Shared (--shared)  - one adventure per channel; anyone can advance the story
+
+Messages are kept under 200 characters for LoRa compatibility.
+"""
+
+import argparse
+import json
+import os
+import sys
+import time
+from pathlib import Path
+from typing import Dict, List, Optional
+
+from logging_config import get_adventure_bot_logger, log_startup_info
+from meshcore import MeshCore, MeshCoreMessage
+
+try:
+    import requests
+    from requests.exceptions import RequestException
+except ImportError:
+    print("Error: requests not found. Install with: pip install requests")
+    sys.exit(1)
+
+# ---------------------------------------------------------------------------
+# Message length limit
+# The MeshCore binary protocol frame fits up to ~230 bytes of text payload,
+# but keeping to 200 leaves comfortable headroom for node-name prefixes and
+# multi-hop path overhead.
+# ---------------------------------------------------------------------------
+MAX_MSG_LEN = 200
+
+# ---------------------------------------------------------------------------
+# Session persistence
+# ---------------------------------------------------------------------------
+SESSION_FILE = Path(__file__).parent / "logs" / "sessions.json"
+SESSION_EXPIRY_SECONDS = 7200  # 2 hours of inactivity
+
+# ---------------------------------------------------------------------------
+# Periodic announcement
+# ---------------------------------------------------------------------------
+ANNOUNCE_INTERVAL = 3 * 60 * 60  # 3 hours
+ANNOUNCE_MESSAGE = "📖 MCADV: AI story bot! !adv to start. Reply 1/2/3 to choose. !help for info."
+
+# ---------------------------------------------------------------------------
+# LLM prompt
+# The prompt is deliberately terse so that even small/quantised models
+# produce something usable within the 160-char budget.
+# ---------------------------------------------------------------------------
+STORY_SYSTEM_PROMPT = (
+    "You are a Choose Your Own Adventure storyteller for LoRa radio. "
+    "STRICT FORMAT - total response under 160 chars: "
+    "[scene, max 100 chars] then newline then [1:OptA 2:OptB 3:OptC] "
+    "each option max 18 chars. No markdown. "
+    "To end a story write 'THE END' instead of options."
+)
+
+# ---------------------------------------------------------------------------
+# Built-in offline story trees
+# Used when no LLM is available. Each node:
+#   text    – story text shown to the player
+#   choices – list of 0-3 choice labels (empty = terminal / THE END)
+#   next    – dict mapping "1"/"2"/"3" to the next node id
+#
+# All formatted messages (text + choices line) must fit in MAX_MSG_LEN.
+# ---------------------------------------------------------------------------
+
+_FANTASY_STORY: Dict = {
+    "start": {
+        "text": "You wake at a crossroads at dusk. Strange sounds fill the air.",
+        "choices": ["Take the road", "Enter forest", "Make camp"],
+        "next": {"1": "road", "2": "forest", "3": "camp"},
+    },
+    "road": {
+        "text": "A bridge ahead. A troll demands: 'Pay or fight!'",
+        "choices": ["Pay the toll", "Fight him", "Sneak past"],
+        "next": {"1": "road_pay", "2": "road_fight", "3": "road_sneak"},
+    },
+    "road_pay": {
+        "text": "The troll reveals a shortcut to a hidden city. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "road_fight": {
+        "text": "You defeat the troll! Under the bridge: a chest of gold. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "road_sneak": {
+        "text": "You fall into the river and wash up at a distant shore. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "forest": {
+        "text": "Ancient trees tower above. A faint blue light blinks deeper in.",
+        "choices": ["Follow the light", "Climb a tree", "Turn back"],
+        "next": {"1": "forest_light", "2": "forest_climb", "3": "start"},
+    },
+    "forest_light": {
+        "text": "The light leads to a fairy ring. What do you do?",
+        "choices": ["Step inside", "Watch only", "Destroy it"],
+        "next": {"1": "fairy_in", "2": "fairy_watch", "3": "fairy_destroy"},
+    },
+    "fairy_in": {
+        "text": "You step in and become champion of a magical realm. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "fairy_watch": {
+        "text": "Fairies dance till dawn then gift you a wishing stone. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "fairy_destroy": {
+        "text": "Destroying the ring frees a banshee. You flee and survive. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "forest_climb": {
+        "text": "From the treetop you spy a dragon's nest with glittering eggs.",
+        "choices": ["Take an egg", "Note location", "Descend fast"],
+        "next": {"1": "dragon_egg", "2": "dragon_note", "3": "dragon_run"},
+    },
+    "dragon_egg": {
+        "text": "You grab an egg. The mother dragon returns and adopts you. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "dragon_note": {
+        "text": "You sell the nest location to a wizard for a fortune. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "dragon_run": {
+        "text": "The dragon spots you but drops a gift in thanks. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "camp": {
+        "text": "By the fire you find a map and a torn journal.",
+        "choices": ["Read the map", "Read journal", "Sleep"],
+        "next": {"1": "camp_map", "2": "camp_journal", "3": "camp_sleep"},
+    },
+    "camp_map": {
+        "text": "The map marks a dragon lair 2 miles east. You go and claim the hoard. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "camp_journal": {
+        "text": "The journal reveals you are the chosen one. Your quest begins. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "camp_sleep": {
+        "text": "A wizard visits your dreams and grants you a magic sword. THE END",
+        "choices": [],
+        "next": {},
+    },
+}
+
+_SCIFI_STORY: Dict = {
+    "start": {
+        "text": "Your colony ship drifts off course. Red alarms flash.",
+        "choices": ["Go to bridge", "Check engines", "Wake captain"],
+        "next": {"1": "bridge", "2": "engines", "3": "captain"},
+    },
+    "bridge": {
+        "text": "Stars show you're near an uncharted system. A signal blinks.",
+        "choices": ["Follow signal", "Plot safe course", "Send SOS"],
+        "next": {"1": "signal", "2": "safe_course", "3": "sos"},
+    },
+    "engines": {
+        "text": "A coolant leak hisses. The reactor is at 12%. Time is short.",
+        "choices": ["Fix the leak", "Reroute power", "Evacuate now"],
+        "next": {"1": "fix_leak", "2": "reroute", "3": "evac_pod"},
+    },
+    "captain": {
+        "text": "The captain's pod is empty. A blood smear leads aft.",
+        "choices": ["Follow smear", "Lock bulkheads", "Arm yourself"],
+        "next": {"1": "smear", "2": "lockdown", "3": "armed"},
+    },
+    "signal": {
+        "text": "The signal guides you to a derelict with spare fuel. You survive. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "safe_course": {
+        "text": "You plot a course home. Fuel runs out but a rescue ship finds you. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "sos": {
+        "text": "A nearby freighter answers. You're towed to safety. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "fix_leak": {
+        "text": "You seal the leak. Power restored. The ship limps to a station. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "reroute": {
+        "text": "Clever rerouting buys 10 hours. You make it to an asteroid base. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "evac_pod": {
+        "text": "You launch in an escape pod and drift for days before rescue. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "smear": {
+        "text": "You find the captain held by a rogue AI. You free them. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "lockdown": {
+        "text": "Lockdown traps you but you crawl through vents to escape. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "armed": {
+        "text": "Armed, you confront a malfunctioning android and shut it down. THE END",
+        "choices": [],
+        "next": {},
+    },
+}
+
+_HORROR_STORY: Dict = {
+    "start": {
+        "text": "You wake alone in an old manor. The front door is locked.",
+        "choices": ["Search upstairs", "Find a window", "Check cellar"],
+        "next": {"1": "upstairs", "2": "window", "3": "cellar"},
+    },
+    "upstairs": {
+        "text": "A corridor stretches ahead. A door at the end creaks open.",
+        "choices": ["Enter the room", "Call out", "Retreat"],
+        "next": {"1": "enter_room", "2": "call_out", "3": "start"},
+    },
+    "window": {
+        "text": "Outside: thick fog and silent figures standing still.",
+        "choices": ["Smash window", "Watch figures", "Find a key"],
+        "next": {"1": "smash", "2": "watch", "3": "find_key"},
+    },
+    "cellar": {
+        "text": "Damp steps descend into darkness. Something breathes below.",
+        "choices": ["Descend slowly", "Throw a torch", "Seal the door"],
+        "next": {"1": "descend", "2": "torch", "3": "seal"},
+    },
+    "enter_room": {
+        "text": "A ghost shows you a hidden exit. You escape unharmed. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "call_out": {
+        "text": "Your echoed name panics you into finding the exit. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "smash": {
+        "text": "You smash through and sprint. The figures don't follow. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "watch": {
+        "text": "The figures vanish at dawn. You find the door unlocked. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "find_key": {
+        "text": "A brass key unlocks the front door. You escape into morning. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "descend": {
+        "text": "A smuggler's passage leads under the wall to freedom. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "torch": {
+        "text": "The torch reveals only a cat. Relieved, you find an exit. THE END",
+        "choices": [],
+        "next": {},
+    },
+    "seal": {
+        "text": "Sealing the door reveals a hidden panel with the front door key. THE END",
+        "choices": [],
+        "next": {},
+    },
+}
+
+# Map theme names to their story trees
+FALLBACK_STORIES: Dict[str, Dict] = {
+    "fantasy": _FANTASY_STORY,
+    "scifi": _SCIFI_STORY,
+    "horror": _HORROR_STORY,
+}
+
+VALID_THEMES: List[str] = list(FALLBACK_STORIES.keys())
+
+
+# ---------------------------------------------------------------------------
+# AdventureBot
+# ---------------------------------------------------------------------------
+
+
+class AdventureBot:
+    """
+    AI-powered Choose Your Own Adventure bot for MeshCore LoRa.
+
+    Uses MeshCore's API for all radio communication.  Story generation is
+    attempted via Ollama, then OpenAI, then Groq, before falling back to the
+    built-in offline story trees.
+    """
+
+    def __init__(
+        self,
+        port: Optional[str] = None,
+        baud: int = 115200,
+        debug: bool = False,
+        allowed_channel_idx: Optional[int] = None,
+        announce: bool = False,
+        ollama_url: str = "http://localhost:11434",
+        model: str = "llama3.2:1b",
+        openai_key: Optional[str] = None,
+        groq_key: Optional[str] = None,
+        shared_mode: bool = False,
+    ):
+        self.allowed_channel_idx = allowed_channel_idx
+        self.announce = announce
+        self.ollama_url = ollama_url.rstrip("/")
+        self.model = model
+        self.openai_key = openai_key or os.environ.get("OPENAI_API_KEY")
+        self.groq_key = groq_key or os.environ.get("GROQ_API_KEY")
+        self.shared_mode = shared_mode
+        self._running = False
+
+        # Logging
+        self.logger, self.error_logger = get_adventure_bot_logger(debug=debug)
+
+        # Per-user (or per-channel in shared mode) sessions
+        self._sessions: Dict = {}
+        self._load_sessions()
+
+        # MeshCore handles all LoRa serial I/O
+        self.mesh = MeshCore(
+            node_id="MCADV",
+            debug=debug,
+            serial_port=port,
+            baud_rate=baud,
+        )
+        self.mesh.register_handler("text", self.handle_message)
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _session_key(self, message: MeshCoreMessage) -> str:
+        """Return the session key: sender in per-user mode, channel in shared mode."""
+        if self.shared_mode:
+            return f"channel_{message.channel_idx}"
+        return message.sender
+
+    def _send_reply(self, text: str, channel_idx: int) -> None:
+        """Send a reply via MeshCore, hard-capping at MAX_MSG_LEN characters."""
+        if len(text) > MAX_MSG_LEN:
+            text = text[: MAX_MSG_LEN - 1] + "…"
+        self.mesh.send_message(text, "text", channel_idx=channel_idx)
+
+    # ------------------------------------------------------------------
+    # Session management
+    # ------------------------------------------------------------------
+
+    def _load_sessions(self) -> None:
+        """Load sessions from disk on startup."""
+        try:
+            if SESSION_FILE.exists():
+                with open(SESSION_FILE) as f:
+                    self._sessions = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            self._sessions = {}
+
+    def _save_sessions(self) -> None:
+        """Persist sessions to disk."""
+        try:
+            SESSION_FILE.parent.mkdir(exist_ok=True)
+            with open(SESSION_FILE, "w") as f:
+                json.dump(self._sessions, f, indent=2)
+        except OSError as e:
+            self.error_logger.error(f"Failed to save sessions: {e}")
+
+    def _expire_sessions(self) -> None:
+        """Remove sessions that have been inactive for SESSION_EXPIRY_SECONDS."""
+        now = time.time()
+        expired = [
+            key
+            for key, data in self._sessions.items()
+            if now - data.get("last_active", 0) > SESSION_EXPIRY_SECONDS
+        ]
+        for key in expired:
+            del self._sessions[key]
+        if expired:
+            self._save_sessions()
+
+    def _get_session(self, key: str) -> dict:
+        """Return the session dict for key, or an empty dict if none exists."""
+        return self._sessions.get(key, {})
+
+    def _update_session(self, key: str, data: dict) -> None:
+        """Merge data into the session for key and persist."""
+        session = self._sessions.get(key, {})
+        session.update(data)
+        session["last_active"] = time.time()
+        self._sessions[key] = session
+        self._save_sessions()
+
+    def _clear_session(self, key: str) -> None:
+        """Remove the session for key."""
+        if key in self._sessions:
+            del self._sessions[key]
+            self._save_sessions()
+
+    # ------------------------------------------------------------------
+    # Story formatting
+    # ------------------------------------------------------------------
+
+    def _format_story_message(self, text: str, choices: List[str]) -> str:
+        """
+        Combine story text and labelled choices into a single LoRa message.
+
+        Format:  <text>\\n1:Choice A 2:Choice B 3:Choice C
+
+        Terminal nodes (empty choices) return just the text.
+        The result is capped at MAX_MSG_LEN characters.
+        """
+        if not choices:
+            return text[:MAX_MSG_LEN]
+        choices_str = " ".join(f"{i + 1}:{c}" for i, c in enumerate(choices))
+        msg = f"{text}\n{choices_str}"
+        return msg[:MAX_MSG_LEN]
+
+    # ------------------------------------------------------------------
+    # LLM backends
+    # ------------------------------------------------------------------
+
+    def _call_ollama(self, prompt: str) -> Optional[str]:
+        """
+        Call a local or remote Ollama server.
+
+        Configure via --ollama-url (e.g. http://192.168.1.50:11434 for a
+        server on your LAN) and --model (e.g. llama3.2:1b, tinyllama).
+        Returns the generated text or None on any failure.
+        """
+        try:
+            resp = requests.post(
+                f"{self.ollama_url}/api/generate",
+                json={
+                    "model": self.model,
+                    "prompt": f"{STORY_SYSTEM_PROMPT}\n\n{prompt}",
+                    "stream": False,
+                    "options": {"num_predict": 80, "temperature": 0.8},
+                },
+                timeout=60,
+            )
+            resp.raise_for_status()
+            return resp.json().get("response", "").strip() or None
+        except (RequestException, KeyError, ValueError) as e:
+            self.logger.debug(f"Ollama unavailable: {e}")
+            return None
+
+    def _call_openai(self, prompt: str) -> Optional[str]:
+        """
+        Call the OpenAI chat completions API (gpt-3.5-turbo).
+
+        Set --openai-key or $OPENAI_API_KEY.  Each request costs a small
+        number of tokens (~150 input + ~80 output = ~230 tokens ≈ $0.0002
+        with gpt-3.5-turbo as of 2025).
+        Returns the generated text or None on any failure.
+        """
+        if not self.openai_key:
+            return None
+        try:
+            resp = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {self.openai_key}", "Content-Type": "application/json"},
+                json={
+                    "model": "gpt-3.5-turbo",
+                    "messages": [
+                        {"role": "system", "content": STORY_SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "max_tokens": 80,
+                    "temperature": 0.8,
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"].strip() or None
+        except (RequestException, KeyError, ValueError) as e:
+            self.logger.debug(f"OpenAI unavailable: {e}")
+            return None
+
+    def _call_groq(self, prompt: str) -> Optional[str]:
+        """
+        Call the Groq cloud inference API (llama3-8b-8192 by default).
+
+        Groq offers a generous free tier.  Set --groq-key or $GROQ_API_KEY.
+        Returns the generated text or None on any failure.
+        """
+        if not self.groq_key:
+            return None
+        try:
+            resp = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"},
+                json={
+                    "model": "llama3-8b-8192",
+                    "messages": [
+                        {"role": "system", "content": STORY_SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "max_tokens": 80,
+                    "temperature": 0.8,
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"].strip() or None
+        except (RequestException, KeyError, ValueError) as e:
+            self.logger.debug(f"Groq unavailable: {e}")
+            return None
+
+    # ------------------------------------------------------------------
+    # Offline fallback story tree
+    # ------------------------------------------------------------------
+
+    def _get_fallback_story(self, key: str, choice: Optional[str], theme: str) -> str:
+        """
+        Advance the built-in story tree and return the formatted message.
+
+        Updates the session's current node.  Marks the session finished when
+        the player reaches a terminal node (no choices).
+        """
+        tree = FALLBACK_STORIES.get(theme, _FANTASY_STORY)
+        session = self._get_session(key)
+        current_node_id = session.get("node", "start")
+
+        if choice is None:
+            node_id = "start"
+        else:
+            current_node = tree.get(current_node_id, tree["start"])
+            node_id = current_node.get("next", {}).get(choice, "start")
+
+        node = tree.get(node_id, tree["start"])
+        is_terminal = not node["choices"]
+        self._update_session(key, {"node": node_id, "status": "finished" if is_terminal else "active"})
+        return self._format_story_message(node["text"], node["choices"])
+
+    # ------------------------------------------------------------------
+    # Story generation (LLM with fallback)
+    # ------------------------------------------------------------------
+
+    def _generate_story(self, key: str, choice: Optional[str], theme: str) -> str:
+        """
+        Generate the next story segment.
+
+        Tries Ollama → OpenAI → Groq in order, then falls back to the
+        built-in offline story tree.  choice=None starts a new adventure;
+        "1"/"2"/"3" continues an existing one.
+        """
+        session = self._get_session(key)
+        history: List[str] = session.get("history", [])
+
+        if choice is None:
+            prompt = f"Start a {theme} CYOA adventure."
+            new_history: List[str] = []
+        else:
+            # Provide context from the last three story beats
+            history_str = " → ".join(history[-3:]) if history else "the beginning"
+            # Retrieve choice label from fallback tree for richer LLM context
+            tree = FALLBACK_STORIES.get(theme, _FANTASY_STORY)
+            current_node = session.get("node", "start")
+            choices_list = tree.get(current_node, {}).get("choices", [])
+            choice_int = int(choice) - 1
+            choice_text = choices_list[choice_int] if 0 <= choice_int < len(choices_list) else choice
+            prompt = f"Story so far: {history_str}. Player chose: {choice_text}. Continue."
+            new_history = history + [f"chose {choice}"]
+
+        story = self._call_ollama(prompt) or self._call_openai(prompt) or self._call_groq(prompt)
+
+        if story:
+            is_terminal = "THE END" in story.upper()
+            self._update_session(key, {
+                "history": new_history[-5:],
+                "theme": theme,
+                "status": "finished" if is_terminal else "active",
+            })
+            return story[:MAX_MSG_LEN]
+
+        # All LLM backends unavailable – use built-in story tree
+        self.logger.info(f"LLM unavailable, using offline story tree for session {key!r}")
+        return self._get_fallback_story(key, choice, theme)
+
+    # ------------------------------------------------------------------
+    # Message handler (called by MeshCore for every incoming text message)
+    # ------------------------------------------------------------------
+
+    def handle_message(self, message: MeshCoreMessage) -> None:
+        """
+        Dispatch an incoming MeshCore channel message to the right command.
+
+        This is the single entry point registered with MeshCore.  It is also
+        called directly by unit tests (no radio hardware required).
+        """
+        sender = message.sender
+        content = message.content.strip()
+        channel_idx = message.channel_idx if message.channel_idx is not None else 0
+        content_lower = content.lower()
+
+        # Drop messages from channels we are not configured to serve
+        if self.allowed_channel_idx is not None and channel_idx != self.allowed_channel_idx:
+            return
+
+        self._expire_sessions()
+        key = self._session_key(message)
+
+        # ---- !help -------------------------------------------------------
+        if content_lower in ("!help", "help"):
+            self._send_reply(
+                "MCADV: !adv[theme] start, 1/2/3 choose, !quit end. Themes: fantasy scifi horror",
+                channel_idx,
+            )
+            return
+
+        # ---- !adv / !start [theme] ---------------------------------------
+        if content_lower.startswith(("!adv", "!start")):
+            parts = content.split(maxsplit=1)
+            raw_theme = parts[1].strip().lower() if len(parts) > 1 else "fantasy"
+            theme = raw_theme if raw_theme in VALID_THEMES else "fantasy"
+            self.logger.info(f"New adventure for {key!r}: theme={theme!r}")
+            self._update_session(key, {"status": "active", "node": "start", "history": [], "theme": theme})
+            story = self._generate_story(key, choice=None, theme=theme)
+            if self.shared_mode:
+                self._send_reply(f"🎲 {sender} started a {theme} adventure!\n{story}", channel_idx)
+            else:
+                self._send_reply(story, channel_idx)
+            return
+
+        # ---- !quit / !end ------------------------------------------------
+        if content_lower in ("!quit", "!end", "!stop"):
+            self._clear_session(key)
+            self._send_reply("Adventure ended. Type !adv to start a new one.", channel_idx)
+            return
+
+        # ---- choice: 1, 2, or 3 ------------------------------------------
+        if content in ("1", "2", "3"):
+            session = self._get_session(key)
+            if not session or session.get("status") != "active":
+                self._send_reply("No active adventure. Type !adv to start.", channel_idx)
+                return
+            theme = session.get("theme", "fantasy")
+            self.logger.info(f"Session {key!r} chose option {content}")
+            story = self._generate_story(key, choice=content, theme=theme)
+            if self.shared_mode:
+                self._send_reply(f"{sender} chose {content}:\n{story}", channel_idx)
+            else:
+                self._send_reply(story, channel_idx)
+            if self._get_session(key).get("status") == "finished":
+                self._clear_session(key)
+            return
+
+        # ---- !status / !state --------------------------------------------
+        if content_lower in ("!status", "!state"):
+            session = self._get_session(key)
+            if session and session.get("status") == "active":
+                theme = session.get("theme", "fantasy")
+                self._send_reply(f"Adventure active ({theme}). Enter 1, 2 or 3.", channel_idx)
+            else:
+                self._send_reply("No active adventure. Type !adv to start.", channel_idx)
+            return
+
+    # ------------------------------------------------------------------
+    # Main run loop
+    # ------------------------------------------------------------------
+
+    def run(self) -> None:
+        """Connect to MeshCore and run the bot until Ctrl-C."""
+        log_startup_info(self.logger, "MCADV Adventure Bot", "1.0.0")
+
+        self.mesh.start()
+        self._running = True
+
+        mode_str = "shared channel" if self.shared_mode else "per-user"
+        if self.allowed_channel_idx is not None:
+            msg = f"MCADV running ({mode_str} mode) on channel_idx={self.allowed_channel_idx}."
+        else:
+            msg = f"MCADV running ({mode_str} mode) on all channels. Type !adv to start."
+        print(msg)
+        self.logger.info(msg)
+        print("Press Ctrl+C to stop.\n", flush=True)
+
+        last_announce = time.time()
+        if self.announce:
+            announce_idx = self.allowed_channel_idx if self.allowed_channel_idx is not None else 0
+            self.mesh.send_message(ANNOUNCE_MESSAGE, "text", channel_idx=announce_idx)
+
+        try:
+            while self._running:
+                time.sleep(1)
+                if self.announce and (time.time() - last_announce >= ANNOUNCE_INTERVAL):
+                    announce_idx = self.allowed_channel_idx if self.allowed_channel_idx is not None else 0
+                    self.mesh.send_message(ANNOUNCE_MESSAGE, "text", channel_idx=announce_idx)
+                    last_announce = time.time()
+        except KeyboardInterrupt:
+            print("\nStopping...")
+            self.logger.info("Stopping...")
+        finally:
+            self._running = False
+            self.mesh.stop()
+            print("MCADV stopped.")
+            self.logger.info("MCADV stopped.")
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point
+# ---------------------------------------------------------------------------
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="MCADV – MeshCore Choose Your Own Adventure Bot",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+LLM backends (tried in order until one succeeds):
+  1. Ollama  – local/remote server via --ollama-url  (e.g. http://192.168.1.x:11434)
+  2. OpenAI  – set --openai-key or $OPENAI_API_KEY
+  3. Groq    – set --groq-key   or $GROQ_API_KEY  (free tier available)
+  4. Offline – built-in story trees, no internet needed
+
+Story themes:  fantasy (default)  scifi  horror
+Gameplay modes: per-user (default)  --shared (one adventure per channel)
+
+Examples:
+  python adventure_bot.py -p /dev/ttyUSB0 --channel-idx 1
+  python adventure_bot.py -p /dev/ttyUSB0 --ollama-url http://192.168.1.50:11434
+  python adventure_bot.py -p /dev/ttyUSB0 --groq-key gsk_...
+  python adventure_bot.py -p /dev/ttyUSB0 --shared --announce
+""",
+    )
+    parser.add_argument("-p", "--port", help="Serial port (e.g. /dev/ttyUSB0). Auto-detects if omitted.")
+    parser.add_argument("-b", "--baud", type=int, default=115200, help="Baud rate (default: 115200)")
+    parser.add_argument("-d", "--debug", action="store_true", help="Enable debug output")
+    parser.add_argument("-a", "--announce", action="store_true", help="Send periodic announcements every 3 hours")
+    parser.add_argument(
+        "-c",
+        "--channel-idx",
+        type=int,
+        help="Only respond to messages from this channel index (e.g. 1 for #adventure)",
+    )
+    parser.add_argument(
+        "--shared",
+        action="store_true",
+        help="Shared mode: one adventure per channel, any user can advance the story",
+    )
+    parser.add_argument(
+        "--ollama-url",
+        default=os.environ.get("OLLAMA_URL", "http://localhost:11434"),
+        help="Ollama API base URL (default: http://localhost:11434 or $OLLAMA_URL)",
+    )
+    parser.add_argument(
+        "--model",
+        default=os.environ.get("OLLAMA_MODEL", "llama3.2:1b"),
+        help="Ollama model name (default: llama3.2:1b or $OLLAMA_MODEL)",
+    )
+    parser.add_argument(
+        "--openai-key",
+        default=os.environ.get("OPENAI_API_KEY"),
+        help="OpenAI API key (or set $OPENAI_API_KEY)",
+    )
+    parser.add_argument(
+        "--groq-key",
+        default=os.environ.get("GROQ_API_KEY"),
+        help="Groq API key for free cloud inference (or set $GROQ_API_KEY)",
+    )
+    args = parser.parse_args()
+
+    bot = AdventureBot(
+        port=args.port,
+        baud=args.baud,
+        debug=args.debug,
+        allowed_channel_idx=args.channel_idx,
+        announce=args.announce,
+        ollama_url=args.ollama_url,
+        model=args.model,
+        openai_key=args.openai_key,
+        groq_key=args.groq_key,
+        shared_mode=args.shared,
+    )
+    bot.run()
+
+
+if __name__ == "__main__":
+    main()
