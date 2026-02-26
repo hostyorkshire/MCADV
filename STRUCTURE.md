@@ -44,7 +44,7 @@ Comprehensive setup guides and documentation
 bash scripts/setup_mcadv.sh
 
 # Or run manually
-python3 adventure_bot.py --port /dev/ttyUSB0 --channel-idx 1
+python3 adventure_bot.py --port /dev/ttyUSB0 --channel adventure
 ```
 
 ## Documentation Files

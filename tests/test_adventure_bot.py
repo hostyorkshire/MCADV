@@ -27,7 +27,7 @@ from adventure_bot import (
     _HORROR_STORY,
     _SCIFI_STORY,
 )
-from meshcore import MeshCoreMessage
+from meshcore import MeshCore, MeshCoreMessage
 
 
 # ---------------------------------------------------------------------------
@@ -48,23 +48,35 @@ def make_bot(**kwargs) -> AdventureBot:
         port=None,
         baud=115200,
         debug=False,
-        allowed_channel_idx=None,
+        allowed_channel=None,
         announce=False,
         ollama_url="http://localhost:11434",
         model="test-model",
     )
     defaults.update(kwargs)
     bot = AdventureBot(**defaults)
+    # Mock the mesh methods for testing
     bot.mesh.send_message = MagicMock()
+    # Create a mock to track set_channel_filter calls made during init
+    # We need to record what was called with the real method
+    original_calls = []
+    if hasattr(bot.mesh, '_original_set_channel_filter'):
+        # Already mocked in a previous test
+        pass
+    else:
+        # Track if set_channel_filter was called
+        if kwargs.get('allowed_channel') is not None:
+            original_calls.append(('set_channel_filter', kwargs['allowed_channel']))
+    bot.mesh._channel_filter_calls = original_calls
     # Isolate each test: start with clean in-memory sessions, no disk writes
     bot._sessions = {}
     bot._save_sessions = MagicMock()
     return bot
 
 
-def make_msg(sender: str = "Alice", content: str = "!adv", channel_idx: int = 1) -> MeshCoreMessage:
+def make_msg(sender: str = "Alice", content: str = "!adv", channel_idx: int = 1, channel: str = None) -> MeshCoreMessage:
     """Create a MeshCoreMessage for testing."""
-    return MeshCoreMessage(sender=sender, content=content, channel_idx=channel_idx)
+    return MeshCoreMessage(sender=sender, content=content, channel_idx=channel_idx, channel=channel)
 
 
 def last_reply(bot: AdventureBot) -> str:
@@ -399,21 +411,27 @@ class TestHandleMessage(unittest.TestCase):
         self.assertIn("scifi", last_reply(self.bot))
 
     # -- channel filtering --
+    # Note: When allowed_channel is set, meshcore.py filters messages at the receive level
+    # using set_channel_filter(). Messages from other channels never reach handle_message().
+    # These tests verify the bot correctly configures channel filtering.
 
-    def test_wrong_channel_ignored(self):
-        bot = make_bot(allowed_channel_idx=2)
-        bot.handle_message(make_msg(content="!help", channel_idx=5))
-        bot.mesh.send_message.assert_not_called()
+    def test_channel_filter_configured(self):
+        """Test that set_channel_filter is called when allowed_channel is provided."""
+        bot = make_bot(allowed_channel="adventure")
+        # Verify that channel filter was set up
+        self.assertEqual(bot.mesh.channel_filter, ["adventure"])
 
-    def test_correct_channel_accepted(self):
-        bot = make_bot(allowed_channel_idx=1)
-        bot.handle_message(make_msg(content="!help", channel_idx=1))
-        bot.mesh.send_message.assert_called_once()
+    def test_no_filter_when_no_channel(self):
+        """Test that set_channel_filter is not called when allowed_channel is None."""
+        bot = make_bot(allowed_channel=None)
+        # Verify that channel filter is None
+        self.assertIsNone(bot.mesh.channel_filter)
 
-    def test_no_filter_accepts_any_channel(self):
-        bot = make_bot(allowed_channel_idx=None)
-        bot._call_ollama = MagicMock(return_value=None)
-        bot.handle_message(make_msg(content="!help", channel_idx=7))
+    def test_messages_handled_normally_with_channel_filter(self):
+        """Test that messages passing through channel filter are handled normally."""
+        bot = make_bot(allowed_channel="adventure")
+        # Simulate a message that passed through meshcore's channel filter
+        bot.handle_message(make_msg(content="!help", channel="adventure", channel_idx=1))
         bot.mesh.send_message.assert_called_once()
 
     # -- unknown messages --
