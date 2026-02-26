@@ -20,6 +20,7 @@ all compute-intensive operations to a more powerful device.
 
 import argparse
 import sys
+import threading
 import time
 from typing import Optional
 
@@ -190,6 +191,21 @@ class RadioGateway:
             # Single message
             self.mesh.send_message(text, "text", channel_idx=channel_idx)
 
+    def _poll_broadcasts(self) -> None:
+        """Poll the bot server for any bot-initiated broadcast messages."""
+        try:
+            resp = self.session.get(
+                f"{self.bot_server_url}/api/broadcast",
+                timeout=5,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("message"):
+                    channel_idx = data.get("channel_idx", 0)
+                    self._send_response(data["message"], channel_idx)
+        except Exception as e:
+            self.logger.debug(f"Broadcast poll error: {e}")
+
     def run(self) -> None:
         """Start the gateway and run until Ctrl+C."""
         log_startup_info(self.logger, "MCADV Radio Gateway", "1.0.0")
@@ -220,6 +236,15 @@ class RadioGateway:
         print("Press Ctrl+C to stop.\n", flush=True)
 
         last_stats_time = time.time()
+
+        # Start broadcast polling in a background thread
+        def broadcast_poller():
+            while self._running:
+                self._poll_broadcasts()
+                time.sleep(30)
+
+        broadcast_thread = threading.Thread(target=broadcast_poller, daemon=True)
+        broadcast_thread.start()
 
         try:
             while self._running:

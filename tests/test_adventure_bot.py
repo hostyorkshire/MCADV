@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from adventure_bot import (  # noqa: E402
     FALLBACK_STORIES,
+    INACTIVITY_RESET_SECONDS,
     MAX_MSG_LEN,
     SESSION_EXPIRY_SECONDS,
     VALID_THEMES,
@@ -403,14 +404,40 @@ class TestCollaborativeMode(unittest.TestCase):
         self.assertEqual(session1["theme"], "fantasy")
         self.assertEqual(session2["theme"], "scifi")
     
-    def test_reset_mentions_who_reset(self):
-        """Test that reset message mentions who reset the story."""
+    def test_reset_is_blocked_for_users(self):
+        """Test that user-invoked !reset is silently ignored."""
         key = get_session_key(1)
         self.bot._update_session(key, {"status": "active", "theme": "fantasy"})
-        
+
         reply = self.bot.handle_message(make_msg(sender="Bob", content="!reset", channel_idx=1))
-        self.assertIn("Bob", reply)
-        self.assertIn("reset", reply.lower())
+        self.assertIsNone(reply)
+        # Session should remain active
+        self.assertEqual(self.bot._get_session(key).get("status"), "active")
+
+    def test_bot_reset_clears_session(self):
+        """Test that _bot_reset() clears all sessions and returns the announcement."""
+        key = get_session_key(1)
+        self.bot._update_session(key, {"status": "active", "theme": "fantasy"})
+
+        msg = self.bot._bot_reset()
+        self.assertIn("24 hours", msg)
+        self.assertIn("Resetting", msg)
+        self.assertEqual(self.bot._sessions, {})
+
+    def test_inactivity_last_activity_updated_on_adv(self):
+        """Test that _last_story_activity is updated when !adv starts a story."""
+        before = self.bot._last_story_activity
+        time.sleep(0.01)
+        self.bot.handle_message(make_msg(sender="Alice", content="!adv fantasy", channel_idx=1))
+        self.assertGreater(self.bot._last_story_activity, before)
+
+    def test_inactivity_last_activity_updated_on_choice(self):
+        """Test that _last_story_activity is updated on a valid story choice."""
+        self.bot.handle_message(make_msg(sender="Alice", content="!adv", channel_idx=1))
+        before = self.bot._last_story_activity
+        time.sleep(0.01)
+        self.bot.handle_message(make_msg(sender="Bob", content="1", channel_idx=1))
+        self.assertGreater(self.bot._last_story_activity, before)
     
     def test_multiple_users_can_make_choices(self):
         """Test that multiple users can make choices in sequence."""

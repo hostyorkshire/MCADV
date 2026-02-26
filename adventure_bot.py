@@ -9,15 +9,14 @@ from a radio gateway (radio_gateway.py) which handles the LoRa communication.
 COLLABORATIVE STORYTELLING:
   Stories are SHARED by all users in the #adventures channel. When one user
   makes a choice, the story progresses for everyone. It's a collaborative
-  effort to reach the end without being killed. The story continues until
-  someone resets it with !reset.
+  effort to reach the end without being killed. The story resets automatically
+  after 24 hours of inactivity (bot use only).
 
 Commands (sent via the radio gateway):
   !adv [theme]   - Start a new adventure (themes: fantasy, scifi, horror)
   !start [theme] - Alias for !adv
   1 / 2 / 3      - Make a choice (affects the shared story for everyone)
-  !reset         - Reset the current story (anyone can reset)
-  !quit / !end   - Alias for !reset
+  !quit / !end   - End the current story session
   !help          - Show available commands
 
 LLM backend:
@@ -28,7 +27,9 @@ LLM backend:
 import argparse
 import json
 import os
+import queue
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -71,6 +72,7 @@ MAX_MSG_LEN = 200
 # ---------------------------------------------------------------------------
 SESSION_FILE = Path(__file__).parent / "logs" / "sessions.json"
 SESSION_EXPIRY_SECONDS = 7200  # 2 hours of inactivity
+INACTIVITY_RESET_SECONDS = 86400  # 24 hours
 
 # ---------------------------------------------------------------------------
 # Collaborative mode messaging
@@ -349,8 +351,8 @@ class AdventureBot:
 
     COLLABORATIVE MODE:
     Stories are shared across all users in a channel. All users participate in
-    the same story, making choices together to reach the end. The story continues
-    until someone resets it with !reset, then a new collaborative adventure begins.
+    the same story, making choices together to reach the end. The story resets
+    automatically after 24 hours of inactivity (bot-internal only).
     """
 
     def __init__(
@@ -376,6 +378,13 @@ class AdventureBot:
         self._sessions_dirty = False  # Track if sessions need saving
         self._last_session_save = time.time()  # For batched saves
         self._load_sessions()
+
+        # Inactivity tracking for auto-reset
+        self._last_story_activity: float = time.time()
+        self._inactivity_check_channel_idx: int = 0
+
+        # Queue for bot-initiated broadcast messages
+        self._broadcast_queue: queue.Queue = queue.Queue()
 
         # HTTP session for connection pooling (faster LLM calls)
         # Only created when first LLM call is made
@@ -473,6 +482,46 @@ class AdventureBot:
             del self._sessions[key]
             self._sessions_dirty = True
             self._save_sessions(force=True)  # Force save when clearing
+
+    def _clear_all_sessions(self) -> None:
+        """Clear all active story sessions."""
+        self._sessions.clear()
+        self._save_sessions(force=True)
+
+    def _bot_reset(self, channel_idx: int = 0) -> str:
+        """
+        Bot-internal reset: clears all active sessions and returns
+        the announcement message to broadcast to the channel.
+        """
+        self._clear_all_sessions()
+        self._last_story_activity = time.time()
+        return "No activity for 24 hours. Resetting the story and awaiting a new command."
+
+    def _broadcast_message(self, text: str, channel_idx: int = 0) -> None:
+        """Queue a bot-initiated message to be sent to the channel."""
+        self._broadcast_queue.put({"text": text, "channel_idx": channel_idx})
+        self.logger.info(f"Queued broadcast: {text!r} on channel_idx={channel_idx}")
+
+    def _inactivity_watchdog(self) -> None:
+        """
+        Background thread: checks every 60 seconds whether the story has been
+        inactive for >= INACTIVITY_RESET_SECONDS. If so, resets and notifies.
+        """
+        while True:
+            time.sleep(60)
+            try:
+                has_active = any(
+                    s.get("status") == "active"
+                    for s in self._sessions.values()
+                )
+                if has_active:
+                    elapsed = time.time() - self._last_story_activity
+                    if elapsed >= INACTIVITY_RESET_SECONDS:
+                        self.logger.info("Inactivity reset triggered after 24h of no story advancement.")
+                        msg = self._bot_reset(self._inactivity_check_channel_idx)
+                        self._broadcast_message(msg, self._inactivity_check_channel_idx)
+            except Exception as e:
+                self.logger.error(f"Inactivity watchdog error: {e}")
 
     # ------------------------------------------------------------------
     # Story formatting
@@ -630,7 +679,7 @@ class AdventureBot:
 
         # ---- !help -------------------------------------------------------
         if content_lower in ("!help", "help"):
-            response = "CYOA Bot (Collaborative): !adv[theme] start, 1/2/3 choose together, !reset to restart. Themes: fantasy scifi horror"
+            response = "CYOA Bot (Collaborative): !adv[theme] start, 1/2/3 choose together, !quit to end. Themes: fantasy scifi horror"
 
         # ---- !adv / !start [theme] ---------------------------------------
         elif content_lower.startswith(("!adv", "!start")):
@@ -639,14 +688,20 @@ class AdventureBot:
             theme = raw_theme if raw_theme in VALID_THEMES else "fantasy"
             self.logger.info(f"New adventure for {key!r}: theme={theme!r} started by {message.sender}")
             self._update_session(key, {"status": "active", "node": "start", "history": [], "theme": theme})
+            self._last_story_activity = time.time()
+            self._inactivity_check_channel_idx = message.channel_idx if message.channel_idx is not None else 0
             response = self._generate_story(key, choice=None, theme=theme)
 
-        # ---- !reset / !quit / !end ----------------------------------------
-        elif content_lower in ("!quit", "!end", "!stop", "!reset"):
+        # ---- !reset (user-invoked) ----------------------------------------
+        elif content_lower == "!reset":
+            return None  # silently ignore; only the bot may invoke reset
+
+        # ---- !quit / !end / !stop ----------------------------------------
+        elif content_lower in ("!quit", "!end", "!stop"):
             session = self._get_session(key)
             if session and session.get("status") == "active":
                 self._clear_session(key)
-                response = f"Story reset by {message.sender}. Type !adv to start a new {COLLABORATIVE_MODE_TEXT}."
+                response = f"Story ended by {message.sender}. Type !adv to start a new {COLLABORATIVE_MODE_TEXT}."
             else:
                 response = f"No active story. Type !adv to start a new {COLLABORATIVE_MODE_TEXT}."
 
@@ -658,6 +713,8 @@ class AdventureBot:
             else:
                 theme = session.get("theme", "fantasy")
                 self.logger.info(f"Session {key!r}: {message.sender} chose option {content}")
+                self._last_story_activity = time.time()
+                self._inactivity_check_channel_idx = message.channel_idx if message.channel_idx is not None else 0
                 response = self._generate_story(key, choice=content, theme=theme)
                 if self._get_session(key).get("status") == "finished":
                     self._clear_session(key)
@@ -719,14 +776,21 @@ class AdventureBot:
                 self.error_logger.exception("Error handling API message")
                 return jsonify({"error": str(e)}), 500
 
+        @app.route('/api/broadcast', methods=['GET'])
+        def get_broadcast():
+            """Radio gateway polls this to get any bot-initiated messages."""
+            try:
+                item = self._broadcast_queue.get_nowait()
+                return jsonify({"message": item["text"], "channel_idx": item["channel_idx"]})
+            except queue.Empty:
+                return jsonify({"message": None, "channel_idx": None})
+
         log_startup_info(self.logger, "CYOA Bot (Distributed Mode)", "1.0.0")
         print(f"HTTP server starting on {self.http_host}:{self.http_port}")
         self.logger.info(f"HTTP server starting on {self.http_host}:{self.http_port}")
         print("Press Ctrl+C to stop.\n", flush=True)
 
         # Start background thread for session saves
-        import threading
-
         def session_saver():
             while self._running:
                 time.sleep(5)
@@ -735,6 +799,9 @@ class AdventureBot:
         self._running = True
         saver_thread = threading.Thread(target=session_saver, daemon=True)
         saver_thread.start()
+
+        watchdog = threading.Thread(target=self._inactivity_watchdog, daemon=True)
+        watchdog.start()
 
         try:
             app.run(host=self.http_host, port=self.http_port, threaded=True)
