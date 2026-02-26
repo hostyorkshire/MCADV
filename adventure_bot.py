@@ -844,7 +844,7 @@ class AdventureBot:
                     continue
                 
                 # Check for exit command
-                if user_input.lower() in ("exit", "quit program", "q"):
+                if user_input.lower() == "exit":
                     break
                 
                 # Create a fake MeshCoreMessage from terminal input
