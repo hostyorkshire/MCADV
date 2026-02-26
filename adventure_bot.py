@@ -498,7 +498,7 @@ class AdventureBot:
         """
         if not choices:
             return text[:MAX_MSG_LEN]
-        # Pre-calculate to avoid repeated string operations  
+        # Pre-calculated to avoid repeated string operations  
         choices_str = " ".join(f"{i + 1}:{c}" for i, c in enumerate(choices))
         # Single concatenation is faster than multiple operations
         result = f"{text}\n{choices_str}"
@@ -804,8 +804,8 @@ class AdventureBot:
         try:
             while self._running:
                 time.sleep(1)
-                # Periodically save sessions to reduce data loss on crashes
-                self._save_sessions()  # Uses batching internally
+                # Check if sessions need saving (batched internally with 5s minimum interval)
+                self._save_sessions()
                 if self.announce and (time.time() - last_announce >= ANNOUNCE_INTERVAL):
                     announce_idx = self.allowed_channel_idx if self.allowed_channel_idx is not None else 0
                     self.mesh.send_message(ANNOUNCE_MESSAGE, "text", channel_idx=announce_idx)
