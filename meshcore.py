@@ -6,8 +6,11 @@ This module provides the core functionality for communicating via MeshCore mesh 
 
 import html
 import json
+import os
 import threading
 import time
+from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
 from logging_config import get_meshcore_logger
@@ -715,7 +718,7 @@ class MeshCore:
 
             # Heuristic 2: Old format would be invalid (channel_idx > 7), but V3 is valid
             # This handles cases where the old format interpretation doesn't make sense
-            elif old_channel_idx > _MAX_VALID_CHANNEL_IDX and 0 <= v3_channel_idx <= _MAX_VALID_CHANNEL_IDX:
+            elif old_channel_idx > _MAX_VALID_CHANNEL_IDX and (0 <= v3_channel_idx <= _MAX_VALID_CHANNEL_IDX):
                 use_v3_format = True
 
             # Heuristic 3: Reserved bytes are 0x00 AND valid channel_idx at position 4 = V3 format
@@ -744,7 +747,9 @@ class MeshCore:
         channel_idx = payload[1]
         # Validate channel_idx is in valid range (0-7)
         # Invalid indices indicate encrypted/garbled messages
-        if not (0 <= channel_idx <= _MAX_VALID_CHANNEL_IDX):
+        if 0 <= channel_idx <= _MAX_VALID_CHANNEL_IDX:
+            pass
+        else:
             return (None, None)
         text_bytes = payload[_OLD_FORMAT_HEADER_SIZE:]
         # Check if raw bytes are encrypted (mostly non-printable/control characters)
@@ -1002,8 +1007,6 @@ class MeshCore:
         This prevents the active channels list from growing indefinitely with
         stale channels that are no longer in use.
         """
-        import time
-
         current_time = time.time()
         expiry_seconds = self._channel_expiry_hours * 3600
 
@@ -1055,11 +1058,6 @@ class MeshCore:
         Args:
             filename: Path to save the channels data (default: <script_dir>/logs/channels.json)
         """
-        import json
-        import os
-        from datetime import datetime
-        from pathlib import Path
-
         # Use absolute path based on script location to avoid working directory issues
         if filename is None:
             filename = str(Path(__file__).parent / "logs" / "channels.json")
@@ -1069,7 +1067,7 @@ class MeshCore:
 
         try:
             os.makedirs(os.path.dirname(filename), exist_ok=True)
-            with open(filename, "w") as f:
+            with open(filename, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
             if self.debug:
                 self.log(f"Saved {len(channels)} active channel(s) to {filename}")

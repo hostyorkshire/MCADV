@@ -489,7 +489,7 @@ class AdventureBot:
         """Load sessions from disk on startup."""
         try:
             if SESSION_FILE.exists():
-                with open(SESSION_FILE) as f:
+                with open(SESSION_FILE, encoding="utf-8") as f:
                     self._sessions = json.load(f)
         except (json.JSONDecodeError, OSError):
             self._sessions = {}
@@ -514,7 +514,7 @@ class AdventureBot:
 
         try:
             SESSION_FILE.parent.mkdir(exist_ok=True)
-            with open(SESSION_FILE, "w") as f:
+            with open(SESSION_FILE, "w", encoding="utf-8") as f:
                 json.dump(self._sessions, f, indent=2)
             self._sessions_dirty = False
             self._last_session_save = now
@@ -764,9 +764,8 @@ class AdventureBot:
             if self.distributed_mode:
                 # In distributed mode, return response instead of sending
                 return response
-            else:
-                # In direct mode, send via mesh
-                self._send_reply(response, channel_idx)
+            # In direct mode, send via mesh
+            self._send_reply(response, channel_idx)
 
         return response if self.distributed_mode else None
 
@@ -860,8 +859,7 @@ class AdventureBot:
 
                 if response_text:
                     return jsonify({"response": response_text})
-                else:
-                    return jsonify({"response": ""})
+                return jsonify({"response": ""})
 
             except Exception as e:
                 self.error_logger.exception("Error handling API message")
@@ -1020,7 +1018,8 @@ Examples:
         "-c",
         "--channel",
         type=str,
-        help="Only respond to messages from this channel name (e.g. 'adventure'). Channel names are consistent across devices.",
+        help="Only respond to messages from this channel name "
+        "(e.g. 'adventure'). Channel names are consistent across devices.",
     )
     parser.add_argument(
         "--ollama-url",
