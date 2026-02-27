@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from adventure_bot import (  # noqa: E402
     FALLBACK_STORIES,
-    INACTIVITY_RESET_SECONDS,
+    STORY_RUNTIME_RESET_SECONDS,
     MAX_MSG_LEN,
     SESSION_EXPIRY_SECONDS,
     VALID_THEMES,
@@ -421,23 +421,20 @@ class TestCollaborativeMode(unittest.TestCase):
 
         msg = self.bot._bot_reset()
         self.assertIn("24 hours", msg)
-        self.assertIn("Resetting", msg)
+        self.assertIn("runtime", msg)
         self.assertEqual(self.bot._sessions, {})
 
-    def test_inactivity_last_activity_updated_on_adv(self):
-        """Test that _last_story_activity is updated when !adv starts a story."""
-        before = self.bot._last_story_activity
-        time.sleep(0.01)
+    def test_story_start_time_set_on_adv(self):
+        """Test that _story_start_time is set when !adv starts a story."""
+        self.assertIsNone(self.bot._story_start_time)
         self.bot.handle_message(make_msg(sender="Alice", content="!adv fantasy", channel_idx=1))
-        self.assertGreater(self.bot._last_story_activity, before)
+        self.assertIsNotNone(self.bot._story_start_time)
 
-    def test_inactivity_last_activity_updated_on_choice(self):
-        """Test that _last_story_activity is updated on a valid story choice."""
+    def test_choice_advances_story_after_adv(self):
+        """Test that a valid story choice advances the story after !adv."""
         self.bot.handle_message(make_msg(sender="Alice", content="!adv", channel_idx=1))
-        before = self.bot._last_story_activity
-        time.sleep(0.01)
-        self.bot.handle_message(make_msg(sender="Bob", content="1", channel_idx=1))
-        self.assertGreater(self.bot._last_story_activity, before)
+        reply = self.bot.handle_message(make_msg(sender="Bob", content="1", channel_idx=1))
+        self.assertIsNotNone(reply)
 
     def test_multiple_users_can_make_choices(self):
         """Test that multiple users can make choices in sequence."""
@@ -454,6 +451,43 @@ class TestCollaborativeMode(unittest.TestCase):
         # Session may be cleared if terminal node was reached, otherwise should have status
         if session:
             self.assertIn(session.get("status"), ["active", "finished"])
+
+    def test_cannot_start_new_story_when_active(self):
+        """Test that starting a new story is blocked when one is active."""
+        # Start a story
+        self.bot.handle_message(make_msg(content="!adv fantasy", channel_idx=1))
+
+        # Try to start another - should be blocked
+        reply = self.bot.handle_message(make_msg(content="!adv horror", channel_idx=1))
+        self.assertIn("in progress", reply.lower())
+
+        # Theme should still be fantasy
+        key = get_session_key(1)
+        self.assertEqual(self.bot._get_session(key)["theme"], "fantasy")
+
+    def test_can_start_new_story_after_conclusion(self):
+        """Test that a new story can start after reaching THE END."""
+        key = get_session_key(1)
+
+        # Start and finish a story
+        self.bot.handle_message(make_msg(content="!adv fantasy", channel_idx=1))
+        self.bot._update_session(key, {"status": "finished"})
+
+        # Should be able to start new story
+        reply = self.bot.handle_message(make_msg(content="!adv horror", channel_idx=1))
+        self.assertNotIn("in progress", reply.lower())
+        self.assertEqual(self.bot._get_session(key)["theme"], "horror")
+
+    def test_story_start_time_tracked(self):
+        """Test that story start time is recorded."""
+        self.bot.handle_message(make_msg(content="!adv", channel_idx=1))
+        self.assertIsNotNone(self.bot._story_start_time)
+
+    def test_24_hour_reset_message_updated(self):
+        """Test that reset message mentions 24 hours of runtime not inactivity."""
+        msg = self.bot._bot_reset()
+        self.assertIn("24 hours", msg.lower())
+        self.assertIn("runtime", msg.lower())
 
 
 # ---------------------------------------------------------------------------

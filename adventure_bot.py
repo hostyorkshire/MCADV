@@ -9,6 +9,7 @@ Supports collaborative storytelling where multiple users can participate in the 
 import argparse
 import json
 import logging
+import threading
 import time
 from pathlib import Path
 from threading import Lock
@@ -17,6 +18,8 @@ from typing import Dict, List, Optional
 import requests
 from flask import Flask, jsonify, request
 
+from bot_commands import is_valid_choice
+from bot_messages import AUTO_RESET_24H, HELP_MESSAGE, NO_ACTIVE_STORY, STORY_ENDED, STORY_IN_PROGRESS
 from meshcore import MeshCoreMessage
 
 # =============================================================================
@@ -25,7 +28,7 @@ from meshcore import MeshCoreMessage
 
 MAX_MSG_LEN = 230
 SESSION_EXPIRY_SECONDS = 3600  # 1 hour
-INACTIVITY_RESET_SECONDS = 86400  # 24 hours
+STORY_RUNTIME_RESET_SECONDS = 86400  # 24 hours
 SESSION_FILE = Path("adventure_sessions.json")
 
 VALID_THEMES = [
@@ -311,7 +314,7 @@ class AdventureBot:
 
         self._sessions: Dict[str, Dict] = {}
         self._session_lock = Lock()
-        self._last_story_activity = time.time()
+        self._story_start_time: Optional[float] = None
 
         # Set up logging first
         if self.debug:
@@ -324,13 +327,29 @@ class AdventureBot:
         # Load existing sessions
         self._load_sessions()
 
+        # Start background thread to auto-reset after 24 hours of runtime
+        self._start_reset_monitor()
+
         # Set up Flask app for HTTP mode
         self.app = Flask(__name__)
         self._setup_routes()
 
+    def _start_reset_monitor(self):
+        """Start background daemon thread to auto-reset story after 24 hours of runtime."""
+        thread = threading.Thread(target=self._check_story_runtime, daemon=True)
+        thread.start()
+
+    def _check_story_runtime(self):
+        """Background thread: reset story after 24 hours of runtime."""
+        while True:
+            time.sleep(60)
+            if self._story_start_time is not None:
+                if time.time() - self._story_start_time > STORY_RUNTIME_RESET_SECONDS:
+                    msg = self._bot_reset()
+                    self.logger.info(f"Auto-reset: {msg}")
+
     def _setup_routes(self):
         """Set up Flask routes for HTTP mode."""
-
         @self.app.route("/api/message", methods=["POST"])
         def message_endpoint():
             data = request.get_json()
@@ -522,8 +541,9 @@ class AdventureBot:
         """Reset all sessions (called by system, not users)."""
         with self._session_lock:
             self._sessions.clear()
+        self._story_start_time = None
         self._save_sessions(force=True)
-        return "Resetting all adventures due to 24 hours of inactivity."
+        return AUTO_RESET_24H
 
     def handle_message(self, message: MeshCoreMessage) -> Optional[str]:
         """
@@ -540,18 +560,15 @@ class AdventureBot:
         # Help command
         if content in ["!help", "help"]:
             themes_list = ", ".join(VALID_THEMES[:5]) + "..."
-            return (
-                f"MCADV Adventure Bot Commands:\n"
-                f"!adv [theme] - Start adventure (default: fantasy)\n"
-                f"!start [theme] - Start adventure\n"
-                f"1/2/3 - Make a choice\n"
-                f"!quit - End adventure\n"
-                f"!status - Check status\n"
-                f"Themes: {themes_list}"
-            )
+            return HELP_MESSAGE.format(themes_list=themes_list)
 
         # Start adventure (!adv or !start)
         if content.startswith("!adv") or content.startswith("!start"):
+            # Block new story if one is already active
+            session = self._get_session(session_key)
+            if session and session.get("status") == "active":
+                return STORY_IN_PROGRESS
+
             parts = content.split(maxsplit=1)
             theme = parts[1] if len(parts) > 1 else "fantasy"
 
@@ -566,8 +583,8 @@ class AdventureBot:
                 {"status": "active", "theme": theme, "node": "start", "history": []},
             )
 
-            # Update activity timestamp
-            self._last_story_activity = time.time()
+            # Track story start time
+            self._story_start_time = time.time()
 
             # Generate opening
             return self._generate_story(session_key, None, theme)
@@ -575,7 +592,7 @@ class AdventureBot:
         # Quit/end command
         if content in ["!quit", "!end"]:
             self._clear_session(session_key)
-            return "Adventure ended. Type !adv to start a new one."
+            return STORY_ENDED
 
         # Status command
         if content == "!status":
@@ -584,23 +601,20 @@ class AdventureBot:
                 theme = session.get("theme", "unknown")
                 status = session.get("status", "unknown")
                 return f"Status: {status}, Theme: {theme}"
-            return "No active adventure. Type !adv to start."
+            return NO_ACTIVE_STORY
 
         # Reset command (user-invoked) - silently ignored
         if content == "!reset":
             return None
 
         # Check for numeric choice
-        if content.isdigit():
+        if is_valid_choice(content):
             session = self._get_session(session_key)
 
             if not session or session.get("status") != "active":
-                return "No active adventure. Type !adv to start."
+                return NO_ACTIVE_STORY
 
             theme = session.get("theme", "fantasy")
-
-            # Update activity timestamp
-            self._last_story_activity = time.time()
 
             # Generate next part of story
             result = self._generate_story(session_key, content, theme)

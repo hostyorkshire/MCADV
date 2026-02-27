@@ -10,7 +10,7 @@ AI-powered Choose Your Own Adventure bot for MeshCore LoRa mesh networks.
 
 - **Everyone shares the same story**: When one user makes a choice, the story progresses for everyone
 - **Work together to reach the end**: Collaborate to find the best path without being killed
-- **Stories continue until reset**: The adventure runs until someone uses `!reset`, then a new story begins
+- **Stories must reach THE END**: Adventures must be completed before a new story can begin. Stories automatically reset after 24 hours of runtime.
 - **One channel, one story**: All interaction happens on the #adventures channel for the collaborative experience
 
 This creates a unique, dynamic storytelling experience where the mesh community works together to navigate challenges and reach conclusions.

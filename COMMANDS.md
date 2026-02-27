@@ -46,4 +46,10 @@ The command supported for starting a new collaborative adventure is:
 
 ## Note
 
-Support for the `!adv` command has been completely removed to simplify the command interface. All user-facing help texts and documentation have been updated accordingly. Users should now use `!start [theme]` exclusively to begin new adventures.
+Both `!adv [theme]` and `!start [theme]` are supported as aliases for starting adventures. Use whichever you prefer.
+
+## Story Behavior
+
+- Adventures must reach "THE END" before a new story can begin
+- Stories automatically reset after running for 24 hours
+- All users on the same channel share the same collaborative story
