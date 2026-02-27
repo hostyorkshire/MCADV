@@ -9,8 +9,6 @@ Supports collaborative storytelling where multiple users can participate in the 
 import argparse
 import json
 import logging
-import os
-import re
 import time
 from pathlib import Path
 from threading import Lock
@@ -290,7 +288,7 @@ for theme in VALID_THEMES:
 class AdventureBot:
     """
     Adventure Bot for collaborative storytelling on Meshtastic mesh networks.
-    
+
     Multiple users on the same channel share the same adventure story.
     Sessions are tracked by channel, not by individual users.
     """
@@ -314,7 +312,7 @@ class AdventureBot:
         self._sessions: Dict[str, Dict] = {}
         self._session_lock = Lock()
         self._last_story_activity = time.time()
-        
+
         # Set up logging first
         if self.debug:
             logging.basicConfig(level=logging.DEBUG)
@@ -322,17 +320,17 @@ class AdventureBot:
             logging.basicConfig(level=logging.INFO)
 
         self.logger = logging.getLogger(__name__)
-        
+
         # Load existing sessions
         self._load_sessions()
-        
+
         # Set up Flask app for HTTP mode
         self.app = Flask(__name__)
         self._setup_routes()
 
     def _setup_routes(self):
         """Set up Flask routes for HTTP mode."""
-        
+
         @self.app.route("/api/message", methods=["POST"])
         def message_endpoint():
             data = request.get_json()
@@ -351,7 +349,7 @@ class AdventureBot:
     def _session_key(self, message: MeshCoreMessage) -> str:
         """
         Generate session key based on channel.
-        
+
         In collaborative mode, all users on the same channel share the same story.
         """
         return f"channel_{message.channel_idx}"
@@ -415,7 +413,7 @@ class AdventureBot:
         """Format a story message with numbered choices."""
         if not choices:
             return text
-        
+
         choice_text = " ".join([f"{i+1}:{c}" for i, c in enumerate(choices)])
         return f"{text}\n{choice_text}"
 
@@ -424,15 +422,15 @@ class AdventureBot:
     ) -> str:
         """
         Navigate the fallback story tree based on choice.
-        
+
         Returns formatted story text with choices.
         """
         session = self._get_session(session_key)
         current_node = session.get("node", "start")
-        
+
         # Get the story tree for this theme
         story_tree = FALLBACK_STORIES.get(theme, _FANTASY_STORY)
-        
+
         # If a choice was made, navigate to next node
         if choice and current_node in story_tree:
             node_data = story_tree[current_node]
@@ -442,22 +440,22 @@ class AdventureBot:
             else:
                 # Invalid choice, reset to start
                 current_node = "start"
-        
+
         # Get current node data
         if current_node not in story_tree:
             current_node = "start"
-        
+
         node_data = story_tree[current_node]
         text = node_data["text"]
         choices_list = node_data["choices"]
-        
+
         # Update session with new node
         self._update_session(session_key, {"node": current_node})
-        
+
         # Check if this is a terminal node (THE END)
         if not choices_list or "THE END" in text:
             self._update_session(session_key, {"status": "finished"})
-        
+
         return self._format_story_message(text, choices_list)
 
     def _call_ollama(
@@ -465,22 +463,22 @@ class AdventureBot:
     ) -> Optional[str]:
         """
         Call Ollama API to generate story content.
-        
+
         Returns None if Ollama is unavailable or fails.
         """
         session = self._get_session(session_key)
         history = session.get("history", [])
-        
+
         # Build prompt
         prompt = f"You are a {theme} adventure game master. "
-        
+
         if not history:
             prompt += "Start a new adventure. Describe the opening scene and give 3 choices numbered 1, 2, 3."
         else:
             prompt += f"The player chose option {choice}. Continue the story. "
             prompt += f"Previous: {history[-1] if history else ''}. "
             prompt += "Provide 3 new choices numbered 1, 2, 3, or end with 'THE END'."
-        
+
         try:
             response = requests.post(
                 f"{self.ollama_url}/api/generate",
@@ -503,20 +501,20 @@ class AdventureBot:
         """
         # Try Ollama first
         llm_result = self._call_ollama(session_key, choice, theme)
-        
+
         if llm_result:
             # Check if story ended
             if "THE END" in llm_result:
                 self._update_session(session_key, {"status": "finished"})
-            
+
             # Update history
             session = self._get_session(session_key)
             history = session.get("history", [])
             history.append(llm_result)
             self._update_session(session_key, {"history": history})
-            
+
             return llm_result
-        
+
         # Fallback to story tree
         return self._get_fallback_story(session_key, choice, theme)
 
@@ -530,15 +528,15 @@ class AdventureBot:
     def handle_message(self, message: MeshCoreMessage) -> Optional[str]:
         """
         Handle incoming message and return response.
-        
+
         Returns None if no response should be sent.
         """
         content = message.content.strip()
         session_key = self._session_key(message)
-        
+
         # Expire old sessions periodically
         self._expire_sessions()
-        
+
         # Help command
         if content in ["!help", "help"]:
             themes_list = ", ".join(VALID_THEMES[:5]) + "..."
@@ -551,34 +549,34 @@ class AdventureBot:
                 f"!status - Check status\n"
                 f"Themes: {themes_list}"
             )
-        
+
         # Start adventure (!adv or !start)
         if content.startswith("!adv") or content.startswith("!start"):
             parts = content.split(maxsplit=1)
             theme = parts[1] if len(parts) > 1 else "fantasy"
-            
+
             # Validate theme
             if theme not in VALID_THEMES:
                 theme = "fantasy"
-            
+
             # Clear existing session and start new one
             self._clear_session(session_key)
             self._update_session(
                 session_key,
                 {"status": "active", "theme": theme, "node": "start", "history": []},
             )
-            
+
             # Update activity timestamp
             self._last_story_activity = time.time()
-            
+
             # Generate opening
             return self._generate_story(session_key, None, theme)
-        
+
         # Quit/end command
         if content in ["!quit", "!end"]:
             self._clear_session(session_key)
             return "Adventure ended. Type !adv to start a new one."
-        
+
         # Status command
         if content == "!status":
             session = self._get_session(session_key)
@@ -587,32 +585,32 @@ class AdventureBot:
                 status = session.get("status", "unknown")
                 return f"Status: {status}, Theme: {theme}"
             return "No active adventure. Type !adv to start."
-        
+
         # Reset command (user-invoked) - silently ignored
         if content == "!reset":
             return None
-        
+
         # Check for numeric choice
         if content.isdigit():
             session = self._get_session(session_key)
-            
+
             if not session or session.get("status") != "active":
                 return "No active adventure. Type !adv to start."
-            
+
             theme = session.get("theme", "fantasy")
-            
+
             # Update activity timestamp
             self._last_story_activity = time.time()
-            
+
             # Generate next part of story
             result = self._generate_story(session_key, content, theme)
-            
+
             # Check if adventure finished
             if self._get_session(session_key).get("status") == "finished":
                 self._clear_session(session_key)
-            
+
             return result
-        
+
         # Unknown message - no response
         return None
 
@@ -646,9 +644,9 @@ def main():
     parser.add_argument("--model", default="llama2", help="Ollama model name")
     parser.add_argument("--http-host", default="0.0.0.0", help="HTTP server host")
     parser.add_argument("--http-port", type=int, default=5000, help="HTTP server port")
-    
+
     args = parser.parse_args()
-    
+
     bot = AdventureBot(
         debug=args.debug,
         ollama_url=args.ollama_url,
@@ -657,7 +655,7 @@ def main():
         http_port=args.http_port,
         distributed_mode=args.distributed_mode,
     )
-    
+
     bot.run_http_server()
 
 

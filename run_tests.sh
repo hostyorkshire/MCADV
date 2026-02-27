@@ -13,5 +13,5 @@ if [ ! -f "$VENV_PYTHON" ]; then
 fi
 
 # Run tests with unittest
-cd "$SCRIPT_DIR"
+cd "$SCRIPT_DIR" || exit 1
 exec "$VENV_PYTHON" -m unittest discover tests "$@"

@@ -60,7 +60,7 @@ def make_bot(**kwargs) -> AdventureBot:
 def make_msg(sender: str = "Alice", content: str = "!adv", channel_idx: int = 1) -> MeshCoreMessage:
     """
     Create a MeshCoreMessage for testing.
-    
+
     In collaborative mode, all users on the same channel share the same story.
     The channel_idx determines which story session is used.
     """
@@ -70,7 +70,7 @@ def make_msg(sender: str = "Alice", content: str = "!adv", channel_idx: int = 1)
 def get_session_key(channel_idx: int = 1) -> str:
     """
     Get the session key for a given channel in collaborative mode.
-    
+
     Helper function for tests to get the correct session key based on channel.
     """
     return f"channel_{channel_idx}"
@@ -158,14 +158,14 @@ class TestSessionKey(unittest.TestCase):
         bot = make_bot()
         msg = make_msg(sender="Alice", channel_idx=1)
         self.assertEqual(bot._session_key(msg), "channel_1")
-    
+
     def test_different_users_same_channel_same_key(self):
         """Test that different users on same channel share the same session key."""
         bot = make_bot()
         msg1 = make_msg(sender="Alice", channel_idx=1)
         msg2 = make_msg(sender="Bob", channel_idx=1)
         self.assertEqual(bot._session_key(msg1), bot._session_key(msg2))
-    
+
     def test_different_channels_different_keys(self):
         """Test that different channels have different session keys."""
         bot = make_bot()
@@ -364,46 +364,46 @@ class TestHandleMessage(unittest.TestCase):
 
 class TestCollaborativeMode(unittest.TestCase):
     """Test collaborative storytelling where multiple users share the same story."""
-    
+
     def setUp(self):
         self.bot = make_bot()
         # Always use offline fallback so tests don't need network
         self.bot._call_ollama = MagicMock(return_value=None)
-    
+
     def test_different_users_same_channel_share_story(self):
         """Test that Alice and Bob on same channel see the same story."""
         # Alice starts the adventure
         reply1 = self.bot.handle_message(make_msg(sender="Alice", content="!adv fantasy", channel_idx=1))
         self.assertIsNotNone(reply1)
-        
+
         # Bob makes a choice - should affect the shared story
         reply2 = self.bot.handle_message(make_msg(sender="Bob", content="1", channel_idx=1))
         self.assertIsNotNone(reply2)
-        
+
         # Verify both users share the same session
         key = get_session_key(1)
         session = self.bot._get_session(key)
         self.assertEqual(session["status"], "active")
         # The node should have advanced from "start" after Bob's choice
         self.assertNotEqual(session.get("node"), "start")
-    
+
     def test_different_channels_different_stories(self):
         """Test that different channels have independent stories."""
         # Alice starts on channel 1
         self.bot.handle_message(make_msg(sender="Alice", content="!adv fantasy", channel_idx=1))
-        
+
         # Bob starts on channel 2
         self.bot.handle_message(make_msg(sender="Bob", content="!adv scifi", channel_idx=2))
-        
+
         # Verify they have different sessions
         key1 = get_session_key(1)
         key2 = get_session_key(2)
         session1 = self.bot._get_session(key1)
         session2 = self.bot._get_session(key2)
-        
+
         self.assertEqual(session1["theme"], "fantasy")
         self.assertEqual(session2["theme"], "scifi")
-    
+
     def test_reset_is_blocked_for_users(self):
         """Test that user-invoked !reset is silently ignored."""
         key = get_session_key(1)
@@ -438,16 +438,16 @@ class TestCollaborativeMode(unittest.TestCase):
         time.sleep(0.01)
         self.bot.handle_message(make_msg(sender="Bob", content="1", channel_idx=1))
         self.assertGreater(self.bot._last_story_activity, before)
-    
+
     def test_multiple_users_can_make_choices(self):
         """Test that multiple users can make choices in sequence."""
         # Alice starts
         self.bot.handle_message(make_msg(sender="Alice", content="!adv", channel_idx=1))
-        
+
         # Bob makes choice 1
         reply1 = self.bot.handle_message(make_msg(sender="Bob", content="1", channel_idx=1))
         self.assertIsNotNone(reply1)
-        
+
         # Verify session exists and is active, finished, or cleared (if terminal node reached)
         key = get_session_key(1)
         session = self.bot._get_session(key)
