@@ -61,7 +61,7 @@ echo ""
 # Get bot server URL
 echo -e "${YELLOW}Bot server URL configuration required${NC}"
 echo "Enter the bot server URL (e.g., http://pi5.local:5000 or http://192.168.1.50:5000):"
-read -p "Bot server URL: " BOT_SERVER_URL
+read -r -p "Bot server URL: " BOT_SERVER_URL
 
 if [ -z "$BOT_SERVER_URL" ]; then
     echo -e "${RED}Error: Bot server URL is required${NC}"
@@ -71,7 +71,6 @@ fi
 # Install systemd service
 echo ""
 echo "Installing systemd service..."
-SERVICE_FILE="$SCRIPT_DIR/radio_gateway.service"
 INSTALLED_SERVICE="/etc/systemd/system/radio_gateway.service"
 CURRENT_USER="$(whoami)"
 INSTALL_DIR="$REPO_DIR"

@@ -63,6 +63,18 @@ mkdir -p "$SCRIPT_DIR/logs"
 echo -e "${GREEN}✓ logs/ directory created${NC}"
 echo ""
 
+# Setup linter configuration files
+echo "Setting up linter configuration files..."
+if [ -f "$SCRIPT_DIR/config/.flake8" ] && [ ! -f "$SCRIPT_DIR/.flake8" ]; then
+    cp "$SCRIPT_DIR/config/.flake8" "$SCRIPT_DIR/.flake8"
+    echo -e "${GREEN}✓ Copied .flake8 configuration${NC}"
+fi
+if [ -f "$SCRIPT_DIR/config/.pylintrc" ] && [ ! -f "$SCRIPT_DIR/.pylintrc" ]; then
+    cp "$SCRIPT_DIR/config/.pylintrc" "$SCRIPT_DIR/.pylintrc"
+    echo -e "${GREEN}✓ Copied .pylintrc configuration${NC}"
+fi
+echo ""
+
 echo "================================================"
 echo -e "${GREEN}✓ Setup complete!${NC}"
 echo "================================================"

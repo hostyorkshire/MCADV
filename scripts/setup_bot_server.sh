@@ -44,7 +44,6 @@ echo ""
 
 # Install systemd service
 echo "Installing systemd service..."
-SERVICE_FILE="$SCRIPT_DIR/bot_server.service"
 INSTALLED_SERVICE="/etc/systemd/system/mcadv_bot_server.service"
 CURRENT_USER="$(whoami)"
 INSTALL_DIR="$REPO_DIR"

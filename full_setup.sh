@@ -182,6 +182,18 @@ setup_python_environment() {
     mkdir -p "$REPO_DIR/logs"
     print_success "Logs directory ready"
     
+    # Setup linter configuration files
+    echo ""
+    echo "Setting up linter configuration files..."
+    if [ -f "$REPO_DIR/config/.flake8" ] && [ ! -f "$REPO_DIR/.flake8" ]; then
+        cp "$REPO_DIR/config/.flake8" "$REPO_DIR/.flake8"
+        print_success "Copied .flake8 configuration"
+    fi
+    if [ -f "$REPO_DIR/config/.pylintrc" ] && [ ! -f "$REPO_DIR/.pylintrc" ]; then
+        cp "$REPO_DIR/config/.pylintrc" "$REPO_DIR/.pylintrc"
+        print_success "Copied .pylintrc configuration"
+    fi
+    
     echo ""
     read -p "Press Enter to continue..."
 }
