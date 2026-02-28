@@ -16,6 +16,7 @@ from typing import Dict, List, Optional
 
 import requests
 from flask import Flask, jsonify, request
+from werkzeug.exceptions import BadRequest
 
 from meshcore import MeshCoreMessage
 
@@ -337,7 +338,7 @@ class AdventureBot:
                 data = request.get_json(force=True, silent=False)
                 if data is None:
                     return jsonify({"error": "Invalid JSON"}), 400
-            except Exception as e:
+            except BadRequest as e:
                 return jsonify({"error": f"Failed to parse JSON: {str(e)}"}), 400
 
             msg = MeshCoreMessage(
@@ -401,7 +402,7 @@ class AdventureBot:
                 try:
                     with open(SESSION_FILE, "w") as f:
                         json.dump(self._sessions, f)
-                except (IOError, OSError, json.JSONEncodeError) as e:
+                except (OSError, json.JSONEncodeError) as e:
                     self.logger.error(f"Failed to save sessions: {e}")
 
     def _load_sessions(self):
@@ -411,7 +412,7 @@ class AdventureBot:
                 with open(SESSION_FILE, "r") as f:
                     self._sessions = json.load(f)
                 self.logger.info(f"Loaded {len(self._sessions)} sessions")
-            except (IOError, OSError, json.JSONDecodeError, ValueError) as e:
+            except (OSError, json.JSONDecodeError, ValueError) as e:
                 self.logger.error(f"Failed to load sessions: {e}")
                 self._sessions = {}
 
