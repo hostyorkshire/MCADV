@@ -48,3 +48,14 @@ logs/channels.json
 # Temporary files
 /tmp/
 *.tmp
+lint_output.txt
+lint_test.txt
+
+# Linting and coverage reports
+.coverage
+coverage.xml
+htmlcov/
+.mypy_cache/
+.pytest_cache/
+bandit-report.json
+.ruff_cache/
