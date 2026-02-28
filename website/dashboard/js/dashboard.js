@@ -105,3 +105,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initRefreshButton();
   setInterval(pollAll, POLL_INTERVAL_MS);
 });
+
+// ---------------------------------------------------------------------------
+// Node.js test support
+// ---------------------------------------------------------------------------
+
+if (typeof module !== 'undefined') {
+  module.exports = { setStatus, checkHealth, updateDashboard, formatUptime, pollAll };
+}

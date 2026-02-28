@@ -1,5 +1,7 @@
 # MCADV - MeshCore Adventure Bot
 
+[![CI/CD Pipeline](https://github.com/hostyorkshire/MCADV/actions/workflows/ci.yml/badge.svg)](https://github.com/hostyorkshire/MCADV/actions/workflows/ci.yml)
+
 AI-powered Choose Your Own Adventure bot for MeshCore LoRa mesh networks.
 
 **Offline-First Architecture:** MCADV runs entirely offline using locally-hosted AI models via Ollama—requiring no internet access whatsoever. The network depends solely on the meshcore LoRa mesh network, making it truly independent from external connectivity.
@@ -102,6 +104,10 @@ This will guide you through:
 # Run the bot using wrapper script
 ./run_adventure_bot.sh --help
 ```
+
+## Version Tracking
+
+The current version is stored in the [`VERSION`](VERSION) file at the repository root. This file is used by `radio_gateway.py` at startup and displayed in the dashboard UI. To bump the version, update the `VERSION` file with the new semantic version string (e.g. `1.1.0`).
 
 ## Testing & Deployment
 

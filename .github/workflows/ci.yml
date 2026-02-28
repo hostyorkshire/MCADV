@@ -131,3 +131,32 @@ jobs:
       - name: Check dependencies with Safety
         # '|| true' prevents blocking the pipeline; review bandit-report.json for findings
         run: safety check --json || true
+
+  dashboard-tests:
+    name: Dashboard JS Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Run dashboard tests
+        run: |
+          cd website/dashboard/tests
+          node test_dashboard_api.js
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test Docker build
+        run: docker build -t mcadv:test .
