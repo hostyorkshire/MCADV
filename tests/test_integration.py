@@ -267,7 +267,7 @@ class TestMultiUserScenarios(unittest.TestCase):
 
     def test_five_channels_independent(self):
         for ch in range(1, 6):
-            self.bot.handle_message(_msg(sender="U", content=f"!adv fantasy", channel_idx=ch))
+            self.bot.handle_message(_msg(sender="U", content="!adv fantasy", channel_idx=ch))
         for ch in range(1, 6):
             s = self.bot._get_session(f"channel_{ch}")
             self.assertEqual(s.get("status"), "active")

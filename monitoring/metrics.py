@@ -1,7 +1,7 @@
 import time
 import threading
 from collections import defaultdict, deque
-from typing import Dict, List, Optional
+from typing import Dict
 
 
 class MetricsCollector:
