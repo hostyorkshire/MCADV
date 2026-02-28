@@ -15,6 +15,32 @@ AI-powered Choose Your Own Adventure bot for MeshCore LoRa mesh networks.
 
 This creates a unique, dynamic storytelling experience where the mesh community works together to navigate challenges and reach conclusions.
 
+## 🔒 Admin Controls & Voting System
+
+To prevent any single user from disrupting the shared adventure, `!quit` and `!end` commands can be restricted to designated admins.
+
+### Configuring Admins
+
+Set admin node IDs via environment variable or CLI:
+
+```bash
+# .env file
+ADMIN_USERS=!a1b2c3d4,!e5f6g7h8
+
+# or via CLI
+python adventure_bot.py --admin-users "!a1b2c3d4,!e5f6g7h8"
+```
+
+When `ADMIN_USERS` is empty (default), all users can end adventures—preserving backward-compatible behaviour.
+
+### Voting System
+
+Non-admin users can still end an adventure by voting:
+
+- Type `!vote` to cast a vote to end the adventure
+- When **3 or more** users vote, the adventure ends automatically
+- Votes are cleared when the adventure ends or a new one begins
+
 ## Hardware Setup
 
 MCADV uses a distributed architecture with two hardware components:
