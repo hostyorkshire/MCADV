@@ -89,7 +89,7 @@ header() { echo -e "\n${CYAN}─── $1 ───${NC}"; }
 test_ping() {
     local host="$1"
     header "Ping Connectivity"
-    if ping -c 3 -W 3 "$host" &>/dev/null 2>&1; then
+    if ping -c 3 -W 3 "$host" &>/dev/null; then
         local latency
         latency="$(ping -c 3 -W 3 "$host" 2>/dev/null | tail -1 | awk -F '/' '{print $5}' || echo '?')"
         ok "Ping to ${host}: avg ${latency} ms"
@@ -132,7 +132,7 @@ test_http_port() {
     local port="$2"
     header "HTTP Port ${port}"
     if command -v nc &>/dev/null; then
-        if nc -z -w 5 "$host" "$port" &>/dev/null 2>&1; then
+        if nc -z -w 5 "$host" "$port" &>/dev/null; then
             ok "Port ${port} is reachable on ${host}"
         else
             fail "Port ${port} is NOT reachable on ${host}"

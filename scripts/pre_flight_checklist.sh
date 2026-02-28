@@ -65,8 +65,8 @@ detect_role() {
     if echo "$model" | grep -qi "zero 2"; then echo "radio_gateway"
     elif echo "$model" | grep -qiE "pi [45]|pi 3"; then echo "bot_server"
     elif grep -qi "ubuntu" /etc/os-release 2>/dev/null; then echo "bot_server"
-    elif pgrep -f "radio_gateway.py" &>/dev/null 2>&1; then echo "radio_gateway"
-    elif pgrep -f "adventure_bot.py" &>/dev/null 2>&1; then echo "bot_server"
+    elif pgrep -f "radio_gateway.py" &>/dev/null; then echo "radio_gateway"
+    elif pgrep -f "adventure_bot.py" &>/dev/null; then echo "bot_server"
     else echo "unknown"
     fi
 }
@@ -92,7 +92,7 @@ auto_check() {
     local description="$2"
     shift 2
     # Remaining args are the test command
-    if "$@" &>/dev/null 2>&1; then
+    if "$@" &>/dev/null; then
         ITEM_STATUS["$key"]="pass"
         echo -e "  ${GREEN}[✓]${NC} ${description}"
     else

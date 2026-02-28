@@ -118,7 +118,7 @@ fi
 header "Python Environment"
 if [[ -f "${REPO_DIR}/venv/bin/python3" ]]; then
     ok "Virtual environment found"
-    if "${REPO_DIR}/venv/bin/python3" -c "import requests, serial" &>/dev/null 2>&1; then
+    if "${REPO_DIR}/venv/bin/python3" -c "import requests, serial" &>/dev/null; then
         ok "Core dependencies (requests, pyserial) importable"
     else
         fail "Core dependencies missing (requests / pyserial)"
@@ -157,7 +157,7 @@ fi
 header "Network Connectivity to Bot Server"
 if command -v ping &>/dev/null; then
     BOT_HOST="$(echo "$BOT_SERVER_URL" | sed 's|http://||;s|:.*||')"
-    if ping -c 2 -W 3 "$BOT_HOST" &>/dev/null 2>&1; then
+    if ping -c 2 -W 3 "$BOT_HOST" &>/dev/null; then
         ok "Ping to bot server host (${BOT_HOST})"
     else
         warn "Cannot ping bot server host (${BOT_HOST})"

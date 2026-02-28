@@ -86,7 +86,7 @@ class SystemMonitor:
                             for key, val in feature.items():
                                 if "input" in key and isinstance(val, (int, float)):
                                     return float(val)
-            except Exception:  # noqa: BLE001
+            except (json.JSONDecodeError, KeyError, TypeError, ValueError):
                 pass
 
         return None

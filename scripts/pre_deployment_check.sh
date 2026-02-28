@@ -87,9 +87,9 @@ detect_role() {
         echo "bot_server"
     elif grep -qi "ubuntu" /etc/os-release 2>/dev/null; then
         echo "bot_server"
-    elif pgrep -f "radio_gateway.py" &>/dev/null 2>&1; then
+    elif pgrep -f "radio_gateway.py" &>/dev/null; then
         echo "radio_gateway"
-    elif pgrep -f "adventure_bot.py" &>/dev/null 2>&1; then
+    elif pgrep -f "adventure_bot.py" &>/dev/null; then
         echo "bot_server"
     else
         echo "unknown"

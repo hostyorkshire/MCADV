@@ -85,7 +85,7 @@ echo "  Timestamp:  $(date)"
 # 1. Basic connectivity
 # ---------------------------------------------------------------------------
 header "Basic Connectivity"
-if ping -c 2 -W 3 "$BOT_HOST" &>/dev/null 2>&1; then
+if ping -c 2 -W 3 "$BOT_HOST" &>/dev/null; then
     ok "Ping to bot server (${BOT_HOST})"
 else
     fail "Cannot ping bot server (${BOT_HOST})"
@@ -135,7 +135,7 @@ if curl -s --connect-timeout 5 "${BOT_BASE}/health" &>/dev/null; then
     if [[ "$HTTP_CODE" == "200" ]]; then
         ok "Status endpoint /status → HTTP 200"
         SESSION_DATA="$(curl -s --connect-timeout 5 "${BOT_BASE}/status" 2>/dev/null || true)"
-        if echo "$SESSION_DATA" | python3 -c "import json,sys; json.load(sys.stdin); print('valid JSON')" &>/dev/null 2>&1; then
+        if echo "$SESSION_DATA" | python3 -c "import json,sys; json.load(sys.stdin); print('valid JSON')" &>/dev/null; then
             ok "Status response is valid JSON"
         else
             warn "Status response is not valid JSON"

@@ -178,7 +178,7 @@ fi
 header "Python Environment"
 if [[ -f "${REPO_DIR}/venv/bin/python3" ]]; then
     ok "Virtual environment found"
-    if "${REPO_DIR}/venv/bin/python3" -c "import flask, requests" &>/dev/null 2>&1; then
+    if "${REPO_DIR}/venv/bin/python3" -c "import flask, requests" &>/dev/null; then
         ok "Core dependencies (flask, requests) importable"
     else
         fail "Core dependencies missing"
