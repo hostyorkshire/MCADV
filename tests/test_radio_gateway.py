@@ -21,11 +21,9 @@ def _make_gateway(**kwargs):
     """
     from radio_gateway import RadioGateway
 
-    with (
-        patch("radio_gateway.MeshCore") as MockMesh,
-        patch("radio_gateway.requests.Session") as MockSession,
-        patch("radio_gateway.get_meshcore_logger") as MockLogger,
-    ):
+    with patch("radio_gateway.MeshCore") as MockMesh, patch("radio_gateway.requests.Session") as MockSession, patch(
+        "radio_gateway.get_meshcore_logger"
+    ) as MockLogger:
 
         mock_mesh_instance = MagicMock()
         MockMesh.return_value = mock_mesh_instance
@@ -88,11 +86,9 @@ class TestRadioGateway(unittest.TestCase):
         """Verify RadioGateway passes the node_id to MeshCore."""
         from radio_gateway import RadioGateway
 
-        with (
-            patch("radio_gateway.MeshCore") as MockMesh,
-            patch("radio_gateway.requests.Session"),
-            patch("radio_gateway.get_meshcore_logger") as MockLogger,
-        ):
+        with patch("radio_gateway.MeshCore") as MockMesh, patch("radio_gateway.requests.Session"), patch(
+            "radio_gateway.get_meshcore_logger"
+        ) as MockLogger:
             MockLogger.return_value = (MagicMock(), MagicMock())
             MockMesh.return_value = MagicMock()
             RadioGateway(bot_server_url="http://localhost:5000", node_id="MY_NODE")
