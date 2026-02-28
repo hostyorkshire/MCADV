@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  adventure_bot:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - WEB_INTERFACE_ENABLED=true
+    volumes:
+      - ./adventure_sessions.json:/app/adventure_sessions.json
+    restart: unless-stopped
+
+  telegram_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.telegram
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - MCADV_SERVER_URL=http://adventure_bot:5000
+    depends_on:
+      - adventure_bot
+    volumes:
+      - ./telegram_sessions.json:/app/telegram_sessions.json
+    restart: unless-stopped
