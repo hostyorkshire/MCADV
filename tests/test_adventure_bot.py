@@ -16,18 +16,17 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from adventure_bot import (  # noqa: E402
+    _FANTASY_STORY,
+    _HORROR_STORY,
+    _SCIFI_STORY,
     FALLBACK_STORIES,
     INACTIVITY_RESET_SECONDS,
     MAX_MSG_LEN,
     SESSION_EXPIRY_SECONDS,
     VALID_THEMES,
     AdventureBot,
-    _FANTASY_STORY,
-    _HORROR_STORY,
-    _SCIFI_STORY,
 )
 from meshcore import MeshCoreMessage  # noqa: E402
-
 
 # ---------------------------------------------------------------------------
 # Test helpers
@@ -465,7 +464,9 @@ class TestLLMIntegration(unittest.TestCase):
     def setUp(self):
         self.bot = make_bot()
         self.session_key = get_session_key(1)
-        self.bot._update_session(self.session_key, {"status": "active", "node": "start", "theme": "fantasy", "history": []})
+        self.bot._update_session(
+            self.session_key, {"status": "active", "node": "start", "theme": "fantasy", "history": []}
+        )
 
     def test_llm_response_used_when_available(self):
         llm_text = "You find a chest.\n1:Open it 2:Leave it 3:Kick it"
@@ -513,8 +514,7 @@ class TestConstants(unittest.TestCase):
                     self.assertIn(
                         next_id,
                         tree,
-                        f"Theme '{theme}', node '{node_id}', choice '{choice}' "
-                        f"references missing node '{next_id}'",
+                        f"Theme '{theme}', node '{node_id}', choice '{choice}' " f"references missing node '{next_id}'",
                     )
 
     def test_terminal_nodes_have_no_choices(self):

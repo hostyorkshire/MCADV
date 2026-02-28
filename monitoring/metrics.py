@@ -1,5 +1,5 @@
-import time
 import threading
+import time
 from collections import defaultdict, deque
 from typing import Dict
 
@@ -57,7 +57,7 @@ class MetricsCollector:
         ]
         for etype, count in stats["errors"].items():
             lines.append(f'mcadv_errors_total{{type="{etype}"}} {count}')
-        return '\n'.join(lines) + '\n'
+        return "\n".join(lines) + "\n"
 
     def reset(self) -> None:
         with self._lock:

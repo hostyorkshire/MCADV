@@ -27,6 +27,7 @@ class Config:
 
     def __init__(self, config_path: Optional[Path] = None):
         import copy
+
         self._data: Dict[str, Any] = copy.deepcopy(self.DEFAULTS)
         if config_path and Path(config_path).exists():
             try:
@@ -45,7 +46,7 @@ class Config:
 
     def get(self, key: str, default: Any = None) -> Any:
         """Retrieve a value using dot notation, e.g. 'server.port'."""
-        parts = key.split('.')
+        parts = key.split(".")
         node: Any = self._data
         for part in parts:
             if isinstance(node, dict) and part in node:
@@ -56,10 +57,11 @@ class Config:
 
     def get_all(self) -> Dict:
         import copy
+
         return copy.deepcopy(self._data)
 
     @classmethod
-    def from_env(cls) -> 'Config':
+    def from_env(cls) -> "Config":
         """Build a Config whose values can be overridden by environment variables."""
         instance = cls()
         mapping = {
@@ -74,7 +76,7 @@ class Config:
         for env_var, dot_key in mapping.items():
             val = os.environ.get(env_var)
             if val is not None:
-                parts = dot_key.split('.')
+                parts = dot_key.split(".")
                 node = instance._data
                 for part in parts[:-1]:
                     node = node.setdefault(part, {})

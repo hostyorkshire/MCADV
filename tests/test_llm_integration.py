@@ -122,12 +122,14 @@ class TestTimeoutHandling(unittest.TestCase):
 
     def test_connection_error_returns_none(self):
         import requests as req
+
         with patch("adventure_bot.requests.post", side_effect=req.exceptions.ConnectionError("refused")):
             result = self.bot._call_ollama(SESSION_KEY, choice=None, theme="fantasy")
         self.assertIsNone(result)
 
     def test_timeout_error_returns_none(self):
         import requests as req
+
         with patch("adventure_bot.requests.post", side_effect=req.exceptions.Timeout("timed out")):
             result = self.bot._call_ollama(SESSION_KEY, choice=None, theme="fantasy")
         self.assertIsNone(result)
@@ -139,6 +141,7 @@ class TestTimeoutHandling(unittest.TestCase):
 
     def test_timeout_triggers_fallback(self):
         import requests as req
+
         with patch("adventure_bot.requests.post", side_effect=req.exceptions.Timeout("timed out")):
             result = self.bot._generate_story(SESSION_KEY, choice=None, theme="fantasy")
         # Should fall back to tree story

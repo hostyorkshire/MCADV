@@ -6,7 +6,7 @@ and retry/error behaviour.  All serial and HTTP I/O is mocked.
 import os
 import sys
 import unittest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, call, patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -21,9 +21,11 @@ def _make_gateway(**kwargs):
     """
     from radio_gateway import RadioGateway
 
-    with patch("radio_gateway.MeshCore") as MockMesh, \
-         patch("radio_gateway.requests.Session") as MockSession, \
-         patch("radio_gateway.get_meshcore_logger") as MockLogger:
+    with (
+        patch("radio_gateway.MeshCore") as MockMesh,
+        patch("radio_gateway.requests.Session") as MockSession,
+        patch("radio_gateway.get_meshcore_logger") as MockLogger,
+    ):
 
         mock_mesh_instance = MagicMock()
         MockMesh.return_value = mock_mesh_instance
@@ -85,9 +87,12 @@ class TestRadioGateway(unittest.TestCase):
     def test_node_id_passed_to_meshcore(self):
         """Verify RadioGateway passes the node_id to MeshCore."""
         from radio_gateway import RadioGateway
-        with patch("radio_gateway.MeshCore") as MockMesh, \
-             patch("radio_gateway.requests.Session"), \
-             patch("radio_gateway.get_meshcore_logger") as MockLogger:
+
+        with (
+            patch("radio_gateway.MeshCore") as MockMesh,
+            patch("radio_gateway.requests.Session"),
+            patch("radio_gateway.get_meshcore_logger") as MockLogger,
+        ):
             MockLogger.return_value = (MagicMock(), MagicMock())
             MockMesh.return_value = MagicMock()
             RadioGateway(bot_server_url="http://localhost:5000", node_id="MY_NODE")
@@ -144,6 +149,7 @@ class TestHTTPForwarding(unittest.TestCase):
 
     def test_forward_returns_none_on_http_error(self):
         from requests.exceptions import RequestException
+
         self.mock_session.post.side_effect = RequestException("timeout")
         msg = MeshCoreMessage(sender="Eve", content="!adv", channel_idx=1)
         result = self.gw._forward_to_bot(msg)
@@ -253,6 +259,7 @@ class TestRetryLogic(unittest.TestCase):
 
     def test_exception_during_forward_increments_failed(self):
         from requests.exceptions import RequestException
+
         self.mock_session.post.side_effect = RequestException("conn refused")
         msg = MeshCoreMessage(sender="A", content="!adv", channel_idx=1)
         self.gw.handle_message(msg)
@@ -260,6 +267,7 @@ class TestRetryLogic(unittest.TestCase):
 
     def test_exception_does_not_raise_to_caller(self):
         from requests.exceptions import RequestException
+
         self.mock_session.post.side_effect = RequestException("boom")
         msg = MeshCoreMessage(sender="A", content="!adv", channel_idx=1)
         # Should not raise

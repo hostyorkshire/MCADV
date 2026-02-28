@@ -13,12 +13,12 @@ def chunk_message(text: str, max_len: int = 230) -> List[str]:
         return [text]
 
     # Split into words while keeping trailing spaces attached
-    words = text.split(' ')
+    words = text.split(" ")
     raw_chunks: List[str] = []
-    current = ''
+    current = ""
 
     for word in words:
-        candidate = (current + ' ' + word).strip() if current else word
+        candidate = (current + " " + word).strip() if current else word
         if len(candidate) <= max_len:
             current = candidate
         else:
@@ -46,7 +46,7 @@ def chunk_message(text: str, max_len: int = 230) -> List[str]:
             result.append(full)
         else:
             # Trim the text so the prefix fits
-            trimmed = chunk[:max_len - len(prefix)]
+            trimmed = chunk[: max_len - len(prefix)]
             result.append(prefix + trimmed)
 
     return result

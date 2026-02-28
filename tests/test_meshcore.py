@@ -6,24 +6,23 @@ import os
 import sys
 import time
 import unittest
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from meshcore import (  # noqa: E402
-    MeshCoreMessage,
-    VALID_BAUD_RATES,
-    _FRAME_OUT,
-    _FRAME_IN,
     _CMD_APP_START,
     _CMD_SEND_CHAN_MSG,
-    _RESP_CHANNEL_MSG,
-    _RESP_NO_MORE_MSGS,
+    _FRAME_IN,
+    _FRAME_OUT,
     _MAX_FRAME_SIZE,
     _MAX_VALID_CHANNEL_IDX,
+    _RESP_CHANNEL_MSG,
+    _RESP_NO_MORE_MSGS,
+    VALID_BAUD_RATES,
+    MeshCoreMessage,
     normalize_channel_name,
 )
-
 
 # =============================================================================
 # TestMeshCoreMessage
@@ -125,7 +124,7 @@ class TestMeshCoreMessage(unittest.TestCase):
 
     def test_slots_present(self):
         msg = MeshCoreMessage(sender="A", content="B")
-        self.assertTrue(hasattr(msg, '__slots__'))
+        self.assertTrue(hasattr(msg, "__slots__"))
 
 
 # =============================================================================
@@ -205,6 +204,7 @@ class TestMeshCoreFrameParsing(unittest.TestCase):
     def _make_meshcore(self, port="/dev/ttyUSB0"):
         """Import MeshCore and build an instance without actually opening serial."""
         from meshcore import MeshCore  # import here to handle ImportError gracefully
+
         with patch("meshcore.serial") as mock_serial_module:
             mock_port = MagicMock()
             mock_serial_module.Serial.return_value = mock_port
@@ -230,6 +230,7 @@ class TestMeshCoreFrameParsing(unittest.TestCase):
     def test_send_message_calls_serial(self):
         try:
             from meshcore import MeshCore
+
             with patch("meshcore.serial") as mock_serial_module:
                 mock_port = MagicMock()
                 mock_port.is_open = True

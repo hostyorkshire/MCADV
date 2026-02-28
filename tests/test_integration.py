@@ -17,7 +17,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from adventure_bot import AdventureBot  # noqa: E402
 from meshcore import MeshCoreMessage  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

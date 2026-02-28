@@ -1,5 +1,5 @@
-import time
 import threading
+import time
 from typing import List, Optional
 
 try:
@@ -18,16 +18,16 @@ class GatewayPool:
     def add_gateway(self, url: str) -> None:
         """Register a gateway URL (idempotent)."""
         with self._lock:
-            urls = [g['url'] for g in self._gateways]
+            urls = [g["url"] for g in self._gateways]
             if url not in urls:
-                self._gateways.append({'url': url, 'healthy': True, 'last_check': 0.0})
+                self._gateways.append({"url": url, "healthy": True, "last_check": 0.0})
 
     def get_healthy_gateway(self) -> Optional[str]:
         """Return the URL of the first healthy gateway, or None."""
         with self._lock:
             for gw in self._gateways:
-                if gw['healthy']:
-                    return gw['url']
+                if gw["healthy"]:
+                    return gw["url"]
         return None
 
     def health_check_all(self) -> None:
@@ -35,12 +35,12 @@ class GatewayPool:
         with self._lock:
             gateways = list(self._gateways)
         for gw in gateways:
-            healthy = self._probe(gw['url'])
+            healthy = self._probe(gw["url"])
             with self._lock:
                 for g in self._gateways:
-                    if g['url'] == gw['url']:
-                        g['healthy'] = healthy
-                        g['last_check'] = time.time()
+                    if g["url"] == gw["url"]:
+                        g["healthy"] = healthy
+                        g["last_check"] = time.time()
 
     def _probe(self, url: str) -> bool:
         if _requests is None:
@@ -54,11 +54,11 @@ class GatewayPool:
     def mark_unhealthy(self, url: str) -> None:
         with self._lock:
             for gw in self._gateways:
-                if gw['url'] == url:
-                    gw['healthy'] = False
+                if gw["url"] == url:
+                    gw["healthy"] = False
 
     def mark_healthy(self, url: str) -> None:
         with self._lock:
             for gw in self._gateways:
-                if gw['url'] == url:
-                    gw['healthy'] = True
+                if gw["url"] == url:
+                    gw["healthy"] = True
