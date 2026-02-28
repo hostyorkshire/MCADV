@@ -355,6 +355,133 @@ class TestHandleMessage(unittest.TestCase):
         reply = self.bot.handle_message(make_msg(content="random chatter"))
         self.assertIsNone(reply)
 
+    # -- help reflects admin-only flag --
+
+    def test_help_mentions_admin_only_for_quit(self):
+        reply = self.bot.handle_message(make_msg(content="!help"))
+        self.assertIn("ADMIN ONLY", reply)
+
+    def test_help_mentions_vote(self):
+        reply = self.bot.handle_message(make_msg(content="!help"))
+        self.assertIn("!vote", reply)
+
+
+# ---------------------------------------------------------------------------
+# Admin controls and voting
+# ---------------------------------------------------------------------------
+
+
+class TestAdminControls(unittest.TestCase):
+    """Tests for admin-only !quit/!end and the !vote system."""
+
+    def setUp(self):
+        # Configure bot with a known admin
+        self.bot = make_bot(admin_users=["!admin01"])
+        self.bot._call_ollama = MagicMock(return_value=None)
+
+    def _start_adventure(self, channel_idx=1):
+        key = get_session_key(channel_idx)
+        self.bot._update_session(key, {"status": "active", "theme": "fantasy", "node": "start", "history": []})
+        return key
+
+    # -- !quit restricted to admins --
+
+    def test_admin_quit_clears_session(self):
+        key = self._start_adventure()
+        reply = self.bot.handle_message(make_msg(sender="!admin01", content="!quit", channel_idx=1))
+        self.assertEqual(self.bot._get_session(key), {})
+        self.assertIn("!adv", reply)
+
+    def test_admin_quit_message_contains_admin_text(self):
+        self._start_adventure()
+        reply = self.bot.handle_message(make_msg(sender="!admin01", content="!quit", channel_idx=1))
+        self.assertIn("Admin", reply)
+
+    def test_non_admin_quit_denied(self):
+        key = self._start_adventure()
+        reply = self.bot.handle_message(make_msg(sender="!user01", content="!quit", channel_idx=1))
+        # Session should NOT be cleared
+        self.assertNotEqual(self.bot._get_session(key), {})
+        self.assertIn("⛔", reply)
+
+    def test_non_admin_quit_suggests_vote(self):
+        self._start_adventure()
+        reply = self.bot.handle_message(make_msg(sender="!user01", content="!quit", channel_idx=1))
+        self.assertIn("!vote", reply)
+
+    def test_admin_end_alias_works(self):
+        key = self._start_adventure()
+        reply = self.bot.handle_message(make_msg(sender="!admin01", content="!end", channel_idx=1))
+        self.assertEqual(self.bot._get_session(key), {})
+        self.assertIsNotNone(reply)
+
+    def test_non_admin_end_denied(self):
+        key = self._start_adventure()
+        reply = self.bot.handle_message(make_msg(sender="!user01", content="!end", channel_idx=1))
+        self.assertNotEqual(self.bot._get_session(key), {})
+        self.assertIn("⛔", reply)
+
+    # -- no admins configured = everyone is admin --
+
+    def test_no_admins_configured_everyone_can_quit(self):
+        bot = make_bot()  # admin_users defaults to empty
+        key = get_session_key(1)
+        bot._update_session(key, {"status": "active", "theme": "fantasy"})
+        reply = bot.handle_message(make_msg(sender="anyone", content="!quit", channel_idx=1))
+        self.assertEqual(bot._get_session(key), {})
+        self.assertIsNotNone(reply)
+
+    # -- !vote command --
+
+    def test_vote_no_active_session(self):
+        reply = self.bot.handle_message(make_msg(sender="!user01", content="!vote", channel_idx=1))
+        self.assertIn("No active adventure", reply)
+
+    def test_vote_increments_count(self):
+        self._start_adventure()
+        reply = self.bot.handle_message(make_msg(sender="!user01", content="!vote", channel_idx=1))
+        self.assertIn("1/3", reply)
+
+    def test_vote_same_user_counted_once(self):
+        self._start_adventure()
+        self.bot.handle_message(make_msg(sender="!user01", content="!vote", channel_idx=1))
+        reply = self.bot.handle_message(make_msg(sender="!user01", content="!vote", channel_idx=1))
+        # Same user voting twice still counts as 1
+        self.assertIn("1/3", reply)
+
+    def test_vote_threshold_ends_adventure(self):
+        key = self._start_adventure()
+        for i in range(1, 4):
+            reply = self.bot.handle_message(make_msg(sender=f"!user0{i}", content="!vote", channel_idx=1))
+        self.assertEqual(self.bot._get_session(key), {})
+        self.assertIn("🗳️", reply)
+        self.assertIn("!adv", reply)
+
+    def test_votes_cleared_on_admin_quit(self):
+        key = self._start_adventure()
+        # Cast a vote first
+        self.bot.handle_message(make_msg(sender="!user01", content="!vote", channel_idx=1))
+        self.assertIn(key, self.bot._quit_votes)
+        # Admin quits - votes should be cleared
+        self.bot.handle_message(make_msg(sender="!admin01", content="!quit", channel_idx=1))
+        self.assertNotIn(key, self.bot._quit_votes)
+
+    def test_votes_cleared_on_new_adventure(self):
+        key = self._start_adventure()
+        self.bot.handle_message(make_msg(sender="!user01", content="!vote", channel_idx=1))
+        # Start new adventure clears session (and votes)
+        self.bot.handle_message(make_msg(sender="Alice", content="!adv", channel_idx=1))
+        self.assertNotIn(key, self.bot._quit_votes)
+
+    def test_is_admin_with_configured_admins(self):
+        self.assertTrue(self.bot._is_admin("!admin01"))
+        self.assertFalse(self.bot._is_admin("!user01"))
+
+    def test_is_admin_no_admins_configured(self):
+        bot = make_bot()
+        self.assertTrue(bot._is_admin("anyone"))
+        self.assertTrue(bot._is_admin("!a1b2c3d4"))
+
 
 # ---------------------------------------------------------------------------
 # Collaborative storytelling

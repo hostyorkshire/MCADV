@@ -277,3 +277,30 @@ python3 -m unittest discover tests
 - Project README: `README.md`
 - Hardware Setup: `HARDWARE.md`
 - Ollama Setup: `guides/OLLAMA_SETUP.md`
+
+## Admin Configuration
+
+To restrict `!quit` and `!end` commands to specific users, configure admin node IDs.
+
+### Finding Your Meshtastic Node ID
+
+Node IDs are displayed in the Meshtastic app or CLI and follow the format `!xxxxxxxx` (e.g., `!a1b2c3d4`).
+
+### Setting Admin Users
+
+**Via `.env` file:**
+
+```bash
+# .env
+ADMIN_USERS=!a1b2c3d4,!e5f6g7h8
+```
+
+**Via command line:**
+
+```bash
+python adventure_bot.py --admin-users "!a1b2c3d4,!e5f6g7h8"
+```
+
+When `ADMIN_USERS` is not set, all users can use `!quit`/`!end` (default behaviour).
+
+Non-admin users can type `!vote` to vote for ending the adventure; three votes end it automatically.

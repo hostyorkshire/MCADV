@@ -9,10 +9,11 @@ Supports collaborative storytelling where multiple users can participate in the 
 import argparse
 import json
 import logging
+import os
 import time
 from pathlib import Path
 from threading import Lock
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 import requests
 from flask import Flask, jsonify, request
@@ -302,6 +303,7 @@ class AdventureBot:
         http_host: str = "0.0.0.0",
         http_port: int = 5000,
         distributed_mode: bool = False,
+        admin_users: Optional[List[str]] = None,
     ):
         self.debug = debug
         self.ollama_url = ollama_url
@@ -309,10 +311,13 @@ class AdventureBot:
         self.http_host = http_host
         self.http_port = http_port
         self.distributed_mode = distributed_mode
+        self.admin_users: List[str] = admin_users or []
 
         self._sessions: Dict[str, Dict] = {}
         self._session_lock = Lock()
         self._last_story_activity = time.time()
+        self._quit_votes: Dict[str, Set[str]] = {}
+        self._vote_threshold: int = 3
 
         # Set up logging first
         if self.debug:
@@ -361,6 +366,12 @@ class AdventureBot:
         """
         return f"channel_{message.channel_idx}"
 
+    def _is_admin(self, sender: str) -> bool:
+        """Check if a sender is an admin. If no admins configured, everyone is admin."""
+        if not self.admin_users:
+            return True
+        return sender in self.admin_users
+
     def _get_session(self, session_key: str) -> Dict:
         """Get session data for a session key."""
         with self._session_lock:
@@ -380,6 +391,7 @@ class AdventureBot:
         with self._session_lock:
             if session_key in self._sessions:
                 del self._sessions[session_key]
+            self._quit_votes.pop(session_key, None)
         self._save_sessions()
 
     def _expire_sessions(self):
@@ -393,6 +405,7 @@ class AdventureBot:
             ]
             for key in expired:
                 del self._sessions[key]
+                self._quit_votes.pop(key, None)
                 self.logger.info(f"Expired session: {key}")
 
     def _save_sessions(self, force: bool = False):
@@ -523,6 +536,7 @@ class AdventureBot:
         """Reset all sessions (called by system, not users)."""
         with self._session_lock:
             self._sessions.clear()
+            self._quit_votes.clear()
         self._save_sessions(force=True)
         return "Resetting all adventures due to 24 hours of inactivity."
 
@@ -546,7 +560,8 @@ class AdventureBot:
                 f"!adv [theme] - Start adventure (default: fantasy)\n"
                 f"!start [theme] - Start adventure\n"
                 f"1/2/3 - Make a choice\n"
-                f"!quit - End adventure\n"
+                f"!quit - End adventure [ADMIN ONLY]\n"
+                f"!vote - Vote to end adventure (3 votes needed)\n"
                 f"!status - Check status\n"
                 f"Themes: {themes_list}"
             )
@@ -575,8 +590,25 @@ class AdventureBot:
 
         # Quit/end command
         if content in ["!quit", "!end"]:
-            self._clear_session(session_key)
-            return "Adventure ended. Type !adv to start a new one."
+            if self._is_admin(message.sender):
+                self._clear_session(session_key)
+                return "🛑 Admin ended adventure. Type !adv to start new."
+            return "⛔ Only admins can use !quit. Use !vote to vote for ending."
+
+        # Vote to end command
+        if content == "!vote":
+            session = self._get_session(session_key)
+            if not session or session.get("status") != "active":
+                return "⛔ No active adventure to vote on."
+            with self._session_lock:
+                if session_key not in self._quit_votes:
+                    self._quit_votes[session_key] = set()
+                self._quit_votes[session_key].add(message.sender)
+                vote_count = len(self._quit_votes[session_key])
+            if vote_count >= self._vote_threshold:
+                self._clear_session(session_key)
+                return f"🗳️ Vote threshold reached! Adventure ended. Type !adv to start new."
+            return f"🗳️ Voted to end adventure ({vote_count}/{self._vote_threshold} votes needed)"
 
         # Status command
         if content == "!status":
@@ -645,8 +677,16 @@ def main():
     parser.add_argument("--model", default="llama2", help="Ollama model name")
     parser.add_argument("--http-host", default="0.0.0.0", help="HTTP server host")
     parser.add_argument("--http-port", type=int, default=5000, help="HTTP server port")
+    parser.add_argument(
+        "--admin-users",
+        default=os.environ.get("ADMIN_USERS", ""),
+        help="Comma-separated admin node IDs (e.g., !a1b2c3d4,!e5f6g7h8). Also reads ADMIN_USERS env var.",
+    )
 
     args = parser.parse_args()
+
+    raw_admin = args.admin_users or ""
+    admin_users = [u.strip() for u in raw_admin.split(",") if u.strip()]
 
     bot = AdventureBot(
         debug=args.debug,
@@ -655,6 +695,7 @@ def main():
         http_host=args.http_host,
         http_port=args.http_port,
         distributed_mode=args.distributed_mode,
+        admin_users=admin_users,
     )
 
     bot.run_http_server()
