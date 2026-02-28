@@ -170,6 +170,8 @@ class SystemMonitor:
                     if 0 <= level <= 100:
                         return level
                 except ValueError:
+                    # Malformed battery capacity value; treat as unavailable and
+                    # continue checking other potential battery paths.
                     pass
         return None
 
