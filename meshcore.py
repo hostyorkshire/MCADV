@@ -106,8 +106,11 @@ class MeshCoreMessage:
     @classmethod
     def from_json(cls, json_str: str) -> "MeshCoreMessage":
         """Create message from JSON string"""
-        data = json.loads(json_str)
-        return cls.from_dict(data)
+        try:
+            data = json.loads(json_str)
+            return cls.from_dict(data)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON string: {e}") from e
 
 
 # Standard serial baud rates accepted for preflight validation
@@ -208,22 +211,22 @@ class MeshCore:
         """
         self.node_id = node_id
         self.debug = debug
-        self.message_handlers = {}
+        self.message_handlers: Dict[str, Callable] = {}
         self.running = False
-        self.channel_filter = None  # None means listen to all channels
+        self.channel_filter: Optional[List[str]] = None  # None means listen to all channels
 
         # Set up logging
         self.logger, self.error_logger = get_meshcore_logger(debug=debug)
 
         # Channel name to channel_idx mapping for LoRa transmission
         # Allows different named channels to use different channel indices
-        self._channel_map = {}  # channel_name -> channel_idx
-        self._reverse_channel_map = {}  # channel_idx -> channel_name
+        self._channel_map: Dict[str, int] = {}  # channel_name -> channel_idx
+        self._reverse_channel_map: Dict[int, str] = {}  # channel_idx -> channel_name
         self._next_channel_idx = 1  # 0 is reserved for default/no-channel
 
         # Track active channels with timestamps for expiration (72 hours)
         # Format: {channel_idx: last_used_timestamp}
-        self._active_channels = {}  # Dict mapping channel_idx to last used timestamp
+        self._active_channels: Dict[int, float] = {}  # Dict mapping channel_idx to last used timestamp
         self._channel_expiry_hours = 72  # Channels expire after 72 hours of inactivity
 
         # LoRa serial connection
@@ -1053,7 +1056,7 @@ class MeshCore:
             )
         return channels
 
-    def save_active_channels(self, filename: str = None):
+    def save_active_channels(self, filename: Optional[str] = None):
         """
         Save active channels to a JSON file for dashboard display.
 
