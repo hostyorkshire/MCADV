@@ -1,0 +1,6 @@
+# Terminal client dependencies for MCADV
+# Install with: pip install -r requirements-terminal.txt
+
+click>=8.0.0
+rich>=13.0.0
+requests>=2.25.0

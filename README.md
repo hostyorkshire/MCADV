@@ -191,6 +191,23 @@ sudo ./scripts/deployment/install_service.sh
 
 See [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) and [docs/FIELD_TESTING.md](docs/FIELD_TESTING.md) for comprehensive testing procedures.
 
+## 🖥️ Terminal/CLI Interface
+
+Play MCADV adventures directly in your terminal with rich formatting and ASCII art!
+
+### Quick Start
+
+```bash
+# Install dependencies
+pip install -r requirements-terminal.txt
+
+# Start playing (server must be running first)
+python terminal_client.py play
+```
+
+See [Terminal Client Documentation](docs/TERMINAL_CLIENT.md) for full details including
+remote server usage, theme selection, history, and configuration.
+
 ## Documentation
 
 - **[SETUP.md](SETUP.md)** - Virtual environment setup and usage guide
