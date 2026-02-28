@@ -265,7 +265,8 @@ class RadioGateway:
             self.logger.info("Stopping...")
         finally:
             self._running = False
-            self.session.close()
+            if hasattr(self, 'session'):
+                self.session.close()
             self.mesh.stop()
             print("Radio gateway stopped.")
             self.logger.info(

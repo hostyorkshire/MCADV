@@ -188,10 +188,10 @@ class TestFallbackStory(unittest.TestCase):
         self.assertIn("crossroads", result)
         self.assertIn("1:", result)
 
-    def test_choice_1_advances_to_road(self):
+    def test_choice_1_advances_to_forest(self):
         self.bot._get_fallback_story("Alice", choice=None, theme="fantasy")  # sets node="start"
         result = self.bot._get_fallback_story("Alice", choice="1", theme="fantasy")
-        self.assertIn("troll", result.lower())
+        self.assertIn("forest", result.lower())
 
     def test_terminal_node_has_no_choices(self):
         self.bot._update_session("Alice", {"status": "active", "node": "road", "theme": "fantasy"})

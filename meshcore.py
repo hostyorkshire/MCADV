@@ -11,7 +11,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from logging_config import get_meshcore_logger
 
@@ -231,6 +231,7 @@ class MeshCore:
         self.baud_rate = baud_rate
         self._serial = None
         self._listener_thread = None
+        self._channel_lock = threading.Lock()
 
     # Maximum length for logged content to prevent log spam
     _MAX_LOG_LENGTH = 200
@@ -244,7 +245,7 @@ class MeshCore:
             return text
 
         # Remove control characters except newline, tab, carriage return
-        sanitized = "".join(char if (ord(char) >= 32 or char in "\n\t\r") else f"\\x{ord(char):02x}" for char in text)
+        sanitized = "".join(char if (ord(char) >= 32 or char in "\n\t\r") else f"\\\\x{ord(char):02x}" for char in text)
 
         # Limit length to prevent log spam
         if len(sanitized) > self._MAX_LOG_LENGTH:
@@ -252,11 +253,11 @@ class MeshCore:
 
         return sanitized
 
-    def log(self, message: str):
+    def log(self, message: str) -> None:
         """Log messages"""
         self.logger.info(message)
 
-    def set_channel_filter(self, channels):
+    def set_channel_filter(self, channels: Optional[Union[str, List[str]]]) -> None:
         """
         Configure channel filtering for the bot.
 
@@ -385,7 +386,8 @@ class MeshCore:
             actual_channel_idx = self._get_channel_idx(channel)
 
         # Track active channel when sending messages (works in both real and simulation mode)
-        self._active_channels[actual_channel_idx] = time.time()
+        with self._channel_lock:
+            self._active_channels[actual_channel_idx] = time.time()
         self.save_active_channels()
 
         channel_info = f" on channel '{channel}'" if channel else ""
@@ -946,7 +948,8 @@ class MeshCore:
             channel_idx: The channel index from the LoRa frame (0-7)
         """
         # Track active channel with timestamp
-        self._active_channels[channel_idx] = time.time()
+        with self._channel_lock:
+            self._active_channels[channel_idx] = time.time()
         # Save active channels for dashboard display
         self.save_active_channels()
 
@@ -1009,19 +1012,20 @@ class MeshCore:
         expiry_seconds = self._channel_expiry_hours * 3600
 
         # Find expired channels
-        expired = [
-            channel_idx
-            for channel_idx, last_used in self._active_channels.items()
-            if current_time - last_used > expiry_seconds
-        ]
+        with self._channel_lock:
+            expired = [
+                channel_idx
+                for channel_idx, last_used in self._active_channels.items()
+                if current_time - last_used > expiry_seconds
+            ]
 
-        # Remove expired channels
-        for channel_idx in expired:
-            del self._active_channels[channel_idx]
-            if self.debug and expired:
-                channel_name = self._get_channel_name(channel_idx)
-                channel_info = f"'{channel_name}'" if channel_name else f"idx={channel_idx}"
-                self.log(f"Expired channel {channel_info} (inactive for {self._channel_expiry_hours}+ hours)")
+            # Remove expired channels
+            for channel_idx in expired:
+                del self._active_channels[channel_idx]
+                if self.debug:
+                    channel_name = self._get_channel_name(channel_idx)
+                    channel_info = f"'{channel_name}'" if channel_name else f"idx={channel_idx}"
+                    self.log(f"Expired channel {channel_info} (inactive for {self._channel_expiry_hours}+ hours)")
 
     def get_active_channels(self):
         """

@@ -73,7 +73,7 @@ _FANTASY_STORY = {
     "start": {
         "text": "You stand at a crossroads. A path to the north leads into a dark forest. To the east, a mountain trail. To the south, a village.",
         "choices": ["North", "East", "South"],
-        "next": {"1": "road", "2": "mountain", "3": "village"},
+        "next": {"1": "forest", "2": "mountain", "3": "village"},
     },
     "forest": {
         "text": "The forest is thick and eerie. You hear rustling in the bushes.",
@@ -614,7 +614,7 @@ class AdventureBot:
         # Unknown message - no response
         return None
 
-    def run_http_server(self):
+    def run_http_server(self) -> None:
         """Run the bot as an HTTP server."""
         if self.distributed_mode:
             self.logger.info("Running in distributed mode (HTTP only, no direct radio connection)")
