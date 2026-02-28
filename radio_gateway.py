@@ -265,7 +265,7 @@ class RadioGateway:
             self.logger.info("Stopping...")
         finally:
             self._running = False
-            if hasattr(self, 'session'):
+            if hasattr(self, "session"):
                 self.session.close()
             self.mesh.stop()
             print("Radio gateway stopped.")
@@ -295,39 +295,16 @@ Examples:
     parser.add_argument(
         "--bot-server-url",
         required=True,
-        help="URL of the bot server (e.g., http://pi5.local:5000 or http://192.168.1.50:5000)"
+        help="URL of the bot server (e.g., http://pi5.local:5000 or http://192.168.1.50:5000)",
     )
     parser.add_argument(
-        "-p", "--port",
-        help="Serial port for LoRa radio (e.g., /dev/ttyUSB0). Auto-detects if omitted."
+        "-p", "--port", help="Serial port for LoRa radio (e.g., /dev/ttyUSB0). Auto-detects if omitted."
     )
-    parser.add_argument(
-        "-b", "--baud",
-        type=int,
-        default=115200,
-        help="Baud rate (default: 115200)"
-    )
-    parser.add_argument(
-        "-d", "--debug",
-        action="store_true",
-        help="Enable debug output"
-    )
-    parser.add_argument(
-        "-c", "--channel-idx",
-        type=int,
-        help="Only forward messages from this channel index (e.g., 1)"
-    )
-    parser.add_argument(
-        "--node-id",
-        default="GATEWAY",
-        help="MeshCore node identifier (default: GATEWAY)"
-    )
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        default=30,
-        help="HTTP request timeout in seconds (default: 30)"
-    )
+    parser.add_argument("-b", "--baud", type=int, default=115200, help="Baud rate (default: 115200)")
+    parser.add_argument("-d", "--debug", action="store_true", help="Enable debug output")
+    parser.add_argument("-c", "--channel-idx", type=int, help="Only forward messages from this channel index (e.g., 1)")
+    parser.add_argument("--node-id", default="GATEWAY", help="MeshCore node identifier (default: GATEWAY)")
+    parser.add_argument("--timeout", type=int, default=30, help="HTTP request timeout in seconds (default: 30)")
 
     args = parser.parse_args()
 

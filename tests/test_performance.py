@@ -133,9 +133,7 @@ class TestLLMResponseTime(unittest.TestCase):
 
     def setUp(self):
         self.bot = _make_bot()
-        self.bot._sessions["ch1"] = {
-            "status": "active", "theme": "fantasy", "node": "start", "history": []
-        }
+        self.bot._sessions["ch1"] = {"status": "active", "theme": "fantasy", "node": "start", "history": []}
 
     def test_fallback_story_generation_fast(self):
         start = time.perf_counter()

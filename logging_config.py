@@ -48,7 +48,7 @@ def setup_logger(name: str, log_file: str, level=logging.INFO, console_output: b
             log_path,
             maxBytes=5 * 1024 * 1024,  # 5 MB (reduced for Pi)
             backupCount=3,  # Keep 3 backups (reduced for Pi)
-            encoding="utf-8"
+            encoding="utf-8",
         )
         file_handler.setLevel(level)
         file_handler.setFormatter(formatter)
@@ -96,7 +96,7 @@ def setup_error_logger(name: str, error_log_file: str):
         error_log_path,
         maxBytes=5 * 1024 * 1024,  # 5 MB (reduced for Pi)
         backupCount=3,  # Keep 3 backups (reduced for Pi)
-        encoding="utf-8"
+        encoding="utf-8",
     )
     error_handler.setLevel(logging.ERROR)
     error_handler.setFormatter(formatter)

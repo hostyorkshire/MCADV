@@ -1,6 +1,6 @@
-import time
 import functools
 import logging
+import time
 from typing import Callable, Tuple, Type
 
 logger = logging.getLogger(__name__)

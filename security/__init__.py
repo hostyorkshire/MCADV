@@ -1,5 +1,6 @@
 """Security module for MCADV."""
-from security.validator import InputValidator
+
 from security.rate_limiter import RateLimiter
+from security.validator import InputValidator
 
 __all__ = ["InputValidator", "RateLimiter"]

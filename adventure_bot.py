@@ -417,9 +417,7 @@ class AdventureBot:
         choice_text = " ".join([f"{i+1}:{c}" for i, c in enumerate(choices)])
         return f"{text}\n{choice_text}"
 
-    def _get_fallback_story(
-        self, session_key: str, choice: Optional[str], theme: str
-    ) -> str:
+    def _get_fallback_story(self, session_key: str, choice: Optional[str], theme: str) -> str:
         """
         Navigate the fallback story tree based on choice.
 
@@ -458,9 +456,7 @@ class AdventureBot:
 
         return self._format_story_message(text, choices_list)
 
-    def _call_ollama(
-        self, session_key: str, choice: Optional[str], theme: str
-    ) -> Optional[str]:
+    def _call_ollama(self, session_key: str, choice: Optional[str], theme: str) -> Optional[str]:
         """
         Call Ollama API to generate story content.
 
@@ -493,9 +489,7 @@ class AdventureBot:
             self.logger.debug(f"Ollama call failed: {e}")
             return None
 
-    def _generate_story(
-        self, session_key: str, choice: Optional[str], theme: str
-    ) -> str:
+    def _generate_story(self, session_key: str, choice: Optional[str], theme: str) -> str:
         """
         Generate story content, trying Ollama first, then falling back to tree.
         """
