@@ -20,6 +20,7 @@ all compute-intensive operations to a more powerful device.
 
 import argparse
 import json
+import os
 import sys
 import threading
 import time
@@ -34,6 +35,16 @@ except ImportError:
 
 from logging_config import get_meshcore_logger, log_startup_info
 from meshcore import MeshCore, MeshCoreMessage
+
+
+def _read_version() -> str:
+    """Read the project version from the VERSION file at the repository root."""
+    version_file = os.path.join(os.path.dirname(__file__), "VERSION")
+    try:
+        with open(version_file) as f:
+            return f.read().strip()
+    except OSError:
+        return "unknown"
 
 
 class RadioGateway:
@@ -209,7 +220,7 @@ class RadioGateway:
 
     def run(self) -> None:
         """Start the gateway and run until Ctrl+C."""
-        log_startup_info(self.logger, "MCADV Radio Gateway", "1.0.0")
+        log_startup_info(self.logger, "MCADV Radio Gateway", _read_version())
 
         # Test connection to bot server
         try:
