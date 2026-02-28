@@ -53,8 +53,8 @@ source venv/bin/activate
 
 ### 3. Install Development Dependencies
 ```bash
-pip install -r requirements-dev.txt
 pip install -r requirements.txt
+pip install -r requirements-dev.txt
 ```
 
 ### 4. Run Linters

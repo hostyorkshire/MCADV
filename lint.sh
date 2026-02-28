@@ -2,7 +2,8 @@
 # Comprehensive code linting script for MCADV project
 # This script runs all configured linters to ensure code quality
 
-set -e
+# Note: We don't use 'set -e' here because we want to collect results from all linters
+# even if some fail, and provide a comprehensive summary at the end.
 
 # Colors for output
 RED='\033[0;31m'
