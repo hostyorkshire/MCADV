@@ -155,7 +155,7 @@ def get_meshcore_logger(debug: bool = False):
     return main_logger, error_logger
 
 
-def log_startup_info(logger, app_name: str, version: str = "1.0.0"):
+def log_startup_info(logger, app_name: str, version: str = "1.0.0") -> None:
     """Log startup information."""
     logger.info("=" * 70)
     logger.info(f"{app_name} Starting")
@@ -165,7 +165,7 @@ def log_startup_info(logger, app_name: str, version: str = "1.0.0"):
     logger.info("=" * 70)
 
 
-def log_exception(logger, error_logger, exception: Exception, context: str = ""):
+def log_exception(logger, error_logger, exception: Exception, context: str = "") -> None:
     """
     Log an exception to both main and error logs.
 
