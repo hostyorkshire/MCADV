@@ -24,7 +24,8 @@
 16. [Maintenance Schedule](#maintenance-schedule)
 17. [Performance Optimization](#performance-optimization)
 18. [Troubleshooting in the Field](#troubleshooting-in-the-field)
-19. [Next Steps](#next-steps)
+19. [Testing and Deployment Scripts](#testing-and-deployment-scripts)
+20. [Next Steps](#next-steps)
 
 ---
 
@@ -982,6 +983,101 @@ Players will continue to receive responses from the built-in story trees.
 
 ---
 
+## Testing and Deployment Scripts
+
+MCADV includes a comprehensive set of scripts to simplify deployment and testing.
+
+### Quick Setup Verification
+
+Run the full setup check before any deployment:
+
+```bash
+./scripts/setup_check.sh
+```
+
+This verifies all 11 prerequisites in one command.
+
+### Guided First-Time Setup
+
+For new installations, use the interactive wizard:
+
+```bash
+./scripts/quick_start.sh
+```
+
+This walks you through every setup step with prompts.
+
+### Testing Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/testing/test_hardware.sh` | Detect and test LoRa radio |
+| `scripts/testing/test_ollama.sh` | Test Ollama connectivity and models |
+| `scripts/testing/test_bot_integration.sh` | End-to-end bot functionality test |
+| `scripts/testing/field_test_monitor.sh` | Live tmux monitoring dashboard |
+
+See [docs/TESTING_GUIDE.md](../docs/TESTING_GUIDE.md) for full testing documentation.
+
+### Systemd Service Installation
+
+Install and manage the bot as a systemd service:
+
+```bash
+# Install the service
+sudo ./scripts/deployment/install_service.sh
+
+# Manage the service interactively
+./scripts/deployment/manage_service.sh
+
+# Set up log rotation
+sudo ./scripts/deployment/setup_logrotate.sh
+```
+
+The service template at `scripts/deployment/mcadv-bot.service` uses:
+- `Restart=always` with 10s delay
+- `MemoryHigh=1800M` (soft limit, no hard kills)
+- `CPUQuota=80%`
+- Log files in `logs/systemd_output.log` and `logs/systemd_error.log`
+
+### Monitoring Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/monitoring/monitor_bot.sh` | Real-time status dashboard |
+| `scripts/monitoring/tune_performance.sh` | Hardware-specific recommendations |
+| `scripts/monitoring/check_resources.sh` | Cron-friendly health check |
+| `scripts/monitoring/alert_config.sh.example` | Alert configuration template |
+
+Run the dashboard:
+
+```bash
+# Run once
+./scripts/monitoring/monitor_bot.sh --once
+
+# Auto-refresh every 30 seconds
+./scripts/monitoring/monitor_bot.sh
+```
+
+Set up automated health checks:
+
+```bash
+crontab -e
+# Add:
+*/5 * * * * /path/to/MCADV/scripts/monitoring/check_resources.sh >> /dev/null 2>&1
+```
+
+### Log Rotation Setup
+
+Prevent log files from filling disk:
+
+```bash
+sudo ./scripts/deployment/setup_logrotate.sh
+```
+
+This configures daily rotation with 7 days retention and compression.
+
+---
+
 ## Next Steps
 
 - Distributed architecture setup: [DISTRIBUTED_ARCHITECTURE.md](DISTRIBUTED_ARCHITECTURE.md)
@@ -989,6 +1085,8 @@ Players will continue to receive responses from the built-in story trees.
 - Cloud LLM options: [CLOUD_LLM_SETUP.md](CLOUD_LLM_SETUP.md)
 - Performance tuning: [PERFORMANCE.md](../PERFORMANCE.md)
 - Hardware selection: [HARDWARE.md](../HARDWARE.md)
+- Testing guide: [docs/TESTING_GUIDE.md](../docs/TESTING_GUIDE.md)
+- Field testing: [docs/FIELD_TESTING.md](../docs/FIELD_TESTING.md)
 
 ---
 
@@ -998,5 +1096,6 @@ Players will continue to receive responses from the built-in story trees.
 - [Other Guides](README.md)
 - [Hardware Guide](../HARDWARE.md)
 - [Performance Guide](../PERFORMANCE.md)
+- [Testing Guide](../docs/TESTING_GUIDE.md)
 
 ---

@@ -1,0 +1,52 @@
+#!/bin/bash
+# alert_config.sh.example - Template for MCADV alert configuration
+#
+# Copy this file to alert_config.sh and edit the values below.
+# check_resources.sh will automatically load this configuration.
+#
+# Usage:
+#   cp alert_config.sh.example alert_config.sh
+#   chmod 600 alert_config.sh  # protect credentials
+#   nano alert_config.sh
+
+# ─── Email Alerts ────────────────────────────────────────────────────────────
+# Email address to send alerts to (requires 'mail' command on the system)
+# Install: sudo apt install mailutils
+# Leave empty to disable email alerts
+ALERT_EMAIL=""
+
+# Example:
+# ALERT_EMAIL="admin@example.com"
+
+# ─── Webhook Alerts (Slack/Discord/etc) ──────────────────────────────────────
+# Webhook URL for Slack or Discord notifications
+# Leave empty to disable webhook alerts
+#
+# Slack:   https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+# Discord: https://discord.com/api/webhooks/YOUR/WEBHOOK
+ALERT_WEBHOOK_URL=""
+
+# ─── Alert Thresholds ─────────────────────────────────────────────────────────
+# Memory usage percentage that triggers a WARNING (default: 80)
+MEM_WARN_PCT=80
+
+# Memory usage percentage that triggers a CRITICAL alert (default: 90)
+MEM_CRIT_PCT=90
+
+# Disk free percentage below which a WARNING is triggered (default: 20)
+DISK_WARN_FREE_PCT=20
+
+# Disk free percentage below which a CRITICAL alert is triggered (default: 10)
+DISK_CRIT_FREE_PCT=10
+
+# Number of minutes to look back for error log entries (default: 5)
+ERROR_WINDOW_MINUTES=5
+
+# ─── Cron Configuration ───────────────────────────────────────────────────────
+# To run health checks every 5 minutes, add to crontab with:
+#   crontab -e
+# Then add:
+#   */5 * * * * /path/to/MCADV/scripts/monitoring/check_resources.sh >> /dev/null 2>&1
+#
+# View health log:
+#   tail -f /path/to/MCADV/logs/health_check.log
