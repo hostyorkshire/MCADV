@@ -335,9 +335,9 @@ class AdventureBot:
         @self.app.route("/api/message", methods=["POST"])
         def message_endpoint():
             try:
-                data = request.get_json(force=True, silent=False)
+                data = request.get_json(silent=False)
                 if data is None:
-                    return jsonify({"error": "Invalid JSON"}), 400
+                    return jsonify({"error": "Invalid JSON or missing Content-Type header"}), 400
             except BadRequest as e:
                 return jsonify({"error": f"Failed to parse JSON: {str(e)}"}), 400
 

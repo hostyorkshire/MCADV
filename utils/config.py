@@ -37,7 +37,7 @@ class Config:
                 with open(config_path) as fh:
                     loaded = json.load(fh)
                 self._merge(self._data, loaded)
-            except Exception as e:
+            except (OSError, json.JSONDecodeError, ValueError) as e:
                 logger.warning(f"Failed to load config from {config_path}: {e}. Using defaults.")
 
     def _merge(self, base: dict, override: dict) -> None:
