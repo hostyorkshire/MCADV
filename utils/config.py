@@ -1,7 +1,10 @@
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class Config:
@@ -34,8 +37,8 @@ class Config:
                 with open(config_path) as fh:
                     loaded = json.load(fh)
                 self._merge(self._data, loaded)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to load config from {config_path}: {e}. Using defaults.")
 
     def _merge(self, base: dict, override: dict) -> None:
         for key, value in override.items():
