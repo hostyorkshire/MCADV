@@ -105,6 +105,7 @@ See [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) and [docs/FIELD_TESTING.md](d
 - **[HARDWARE.md](HARDWARE.md)** - Hardware recommendations
 - **[PERFORMANCE.md](PERFORMANCE.md)** - Performance optimizations
 - **[STRUCTURE.md](STRUCTURE.md)** - Repository structure
+- **[docs/LINTING.md](docs/LINTING.md)** - Code linting guide and standards
 - **[docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md)** - Testing scripts and procedures
 - **[docs/FIELD_TESTING.md](docs/FIELD_TESTING.md)** - Field testing procedures and checklists
 - **[guides/](guides/)** - Detailed setup guides (Ollama, Raspberry Pi, Production Deployment, etc.)

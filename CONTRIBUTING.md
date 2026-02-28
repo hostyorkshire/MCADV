@@ -54,9 +54,26 @@ source venv/bin/activate
 ### 3. Install Development Dependencies
 ```bash
 pip install -r requirements.txt
+pip install -r requirements-dev.txt
 ```
 
-### 4. Run Tests
+### 4. Run Linters
+```bash
+# Run all linters at once
+./run_linters.sh
+
+# Or check individual linters
+flake8 .
+black --check .
+isort --check-only .
+pylint *.py
+mypy .
+bandit -r .
+```
+
+See [docs/LINTING.md](docs/LINTING.md) for detailed linting documentation.
+
+### 5. Run Tests
 ```bash
 # Run all tests
 ./run_all_tests.sh
@@ -72,18 +89,34 @@ pip install -r requirements.txt
 - Use meaningful variable names
 - Add docstrings to functions and classes
 - Keep functions focused and concise
+- Maximum line length: 120 characters
 
-### Linting
-We use `flake8` and `pylint`:
+### Code Quality
+We use multiple linters to ensure code quality:
+- **Black** - Automated code formatting
+- **isort** - Import statement organization
+- **Flake8** - PEP 8 compliance checking
+- **Pylint** - Comprehensive code analysis (target: ≥ 9.0/10)
+- **MyPy** - Type checking and hints
+- **Bandit** - Security vulnerability scanning
+
+**Before submitting a PR:**
 ```bash
-# Check your code
-flake8 .
-pylint *.py
+# Run all linters
+./run_linters.sh
+
+# Auto-fix formatting issues
+black .
+isort .
 ```
 
 Configuration files:
 - `.flake8` - Flake8 settings
 - `.pylintrc` - Pylint settings
+- `pyproject.toml` - Black, isort, mypy, bandit settings
+- `.pre-commit-config.yaml` - Pre-commit hook configuration
+
+See [docs/LINTING.md](docs/LINTING.md) for comprehensive linting documentation.
 
 ### Testing
 - Write tests for new features
