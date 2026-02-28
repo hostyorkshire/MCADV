@@ -1,0 +1,31 @@
+[Unit]
+Description=MCADV Adventure Bot for Meshtastic
+After=network.target ollama.service
+Wants=ollama.service
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__WORKDIR__
+Environment="PATH=__WORKDIR__/venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=__WORKDIR__/venv/bin/python3 __WORKDIR__/adventure_bot.py --ollama-url http://localhost:11434 --model llama3.1:8b
+
+# Restart policy - always restart, wait 10s between attempts
+Restart=always
+RestartSec=10
+StartLimitBurst=5
+StartLimitIntervalSec=120
+
+# Logging
+StandardOutput=append:__WORKDIR__/logs/systemd_output.log
+StandardError=append:__WORKDIR__/logs/systemd_error.log
+
+# Resource limits
+# MemoryHigh is a soft limit: systemd reclaims memory aggressively when exceeded
+# but does not kill the process (unlike MemoryMax which causes OOM kills).
+# Increase this value if the bot is killed unexpectedly.
+MemoryHigh=1800M
+CPUQuota=80%
+
+[Install]
+WantedBy=multi-user.target

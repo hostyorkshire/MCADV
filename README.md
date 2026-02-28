@@ -43,13 +43,71 @@ This will guide you through:
 ./run_adventure_bot.sh --help
 ```
 
+## Testing & Deployment
+
+### Quick Setup Check
+
+Verify your entire setup in one command:
+
+```bash
+./scripts/setup_check.sh
+```
+
+### Testing Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/testing/test_hardware.sh` | Detect and test LoRa radios |
+| `scripts/testing/test_ollama.sh` | Test Ollama connectivity and models |
+| `scripts/testing/test_bot_integration.sh` | End-to-end bot integration test |
+| `scripts/testing/field_test_monitor.sh` | Live tmux monitoring dashboard |
+
+### Deployment Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/deployment/install_service.sh` | Install as systemd service |
+| `scripts/deployment/manage_service.sh` | Interactive service management |
+| `scripts/deployment/setup_logrotate.sh` | Configure log rotation |
+
+### Monitoring Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/monitoring/monitor_bot.sh` | Real-time status dashboard |
+| `scripts/monitoring/tune_performance.sh` | Hardware-tuned recommendations |
+| `scripts/monitoring/check_resources.sh` | Cron-friendly health check |
+
+### Quick Commands
+
+```bash
+# Check setup
+./scripts/setup_check.sh
+
+# Test hardware
+./scripts/testing/test_hardware.sh
+
+# Monitor the running bot
+./scripts/monitoring/monitor_bot.sh
+
+# Install as systemd service
+sudo ./scripts/deployment/install_service.sh
+
+# Manage the service
+./scripts/deployment/manage_service.sh
+```
+
+See [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) and [docs/FIELD_TESTING.md](docs/FIELD_TESTING.md) for comprehensive testing procedures.
+
 ## Documentation
 
 - **[SETUP.md](SETUP.md)** - Virtual environment setup and usage guide
 - **[HARDWARE.md](HARDWARE.md)** - Hardware recommendations
 - **[PERFORMANCE.md](PERFORMANCE.md)** - Performance optimizations
 - **[STRUCTURE.md](STRUCTURE.md)** - Repository structure
-- **[guides/](guides/)** - Detailed setup guides (Ollama, Raspberry Pi, etc.)
+- **[docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md)** - Testing scripts and procedures
+- **[docs/FIELD_TESTING.md](docs/FIELD_TESTING.md)** - Field testing procedures and checklists
+- **[guides/](guides/)** - Detailed setup guides (Ollama, Raspberry Pi, Production Deployment, etc.)
 
 ## Quick Model Selection Guide
 
