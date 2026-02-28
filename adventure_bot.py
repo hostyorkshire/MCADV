@@ -607,7 +607,7 @@ class AdventureBot:
                 vote_count = len(self._quit_votes[session_key])
             if vote_count >= self._vote_threshold:
                 self._clear_session(session_key)
-                return f"🗳️ Vote threshold reached! Adventure ended. Type !adv to start new."
+                return "🗳️ Vote threshold reached! Adventure ended. Type !adv to start new."
             return f"🗳️ Voted to end adventure ({vote_count}/{self._vote_threshold} votes needed)"
 
         # Status command
