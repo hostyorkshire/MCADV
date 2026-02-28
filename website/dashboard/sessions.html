@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Active Sessions – MCADV</title>
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+  <header>
+    <h1>&#127918; MCADV Adventure Bot</h1>
+    <nav>
+      <a href="index.html">Dashboard</a>
+      <a href="sessions.html" class="active">Sessions</a>
+      <a href="stats.html">Stats</a>
+      <a href="admin.html">Admin</a>
+    </nav>
+    <span id="bot-status" class="status-badge status-unknown">Checking…</span>
+  </header>
+
+  <main>
+    <section>
+      <h2>Active Sessions</h2>
+      <button id="refresh-btn" class="btn">&#8635; Refresh</button>
+      <table id="sessions-table">
+        <thead>
+          <tr>
+            <th>Channel</th>
+            <th>Theme</th>
+            <th>Status</th>
+            <th>Current Node</th>
+            <th>Last Active</th>
+          </tr>
+        </thead>
+        <tbody id="sessions-body">
+          <tr><td colspan="5" class="placeholder">Loading sessions…</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer>
+    <p>MCADV &mdash; <a href="../index.html">Back to site</a></p>
+  </footer>
+
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

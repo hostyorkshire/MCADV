@@ -1,0 +1,17 @@
+# Exclude large / generated / sensitive directories from Docker builds
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.github/
+logs/
+*.log
+tests/
+docs/
+*.md
+.env
+.env.*
+!.env.example
+adventure_sessions.json

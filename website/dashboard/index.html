@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCADV Dashboard</title>
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+  <header>
+    <h1>&#127918; MCADV Adventure Bot</h1>
+    <nav>
+      <a href="index.html" class="active">Dashboard</a>
+      <a href="sessions.html">Sessions</a>
+      <a href="stats.html">Stats</a>
+      <a href="admin.html">Admin</a>
+    </nav>
+    <span id="bot-status" class="status-badge status-unknown">Checking…</span>
+  </header>
+
+  <main>
+    <section class="metric-cards">
+      <div class="card">
+        <h2>Active Sessions</h2>
+        <p id="active-sessions" class="metric-value">—</p>
+      </div>
+      <div class="card">
+        <h2>Messages Processed</h2>
+        <p id="messages-processed" class="metric-value">—</p>
+      </div>
+      <div class="card">
+        <h2>Uptime</h2>
+        <p id="uptime" class="metric-value">—</p>
+      </div>
+      <div class="card">
+        <h2>LLM Backend</h2>
+        <p id="llm-backend" class="metric-value">Ollama</p>
+      </div>
+    </section>
+
+    <section class="recent-messages">
+      <h2>Recent Activity</h2>
+      <div id="activity-log" class="log-box">
+        <p class="placeholder">Waiting for activity…</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>MCADV &mdash; MeshCore Adventure Bot &mdash; <a href="../index.html">Back to site</a></p>
+  </footer>
+
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

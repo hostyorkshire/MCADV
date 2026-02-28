@@ -1,0 +1,35 @@
+# MCADV Configuration File
+# See docs/DEPLOYMENT.md for full documentation
+
+server:
+  host: 0.0.0.0
+  port: 5000
+  debug: false
+
+llm:
+  backend: ollama
+  url: http://localhost:11434
+  model: llama3.1:8b
+  timeout: 30
+  max_retries: 3
+
+radio:
+  port: null
+  baud: 115200
+  auto_detect: true
+
+security:
+  rate_limit:
+    enabled: true
+    max_messages_per_minute: 10
+  input_validation:
+    max_message_length: 500
+
+monitoring:
+  metrics_enabled: true
+  health_check_interval: 60
+
+features:
+  story_saves: true
+  web_dashboard: true
+  llm_generation: true

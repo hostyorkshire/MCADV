@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin – MCADV</title>
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+  <header>
+    <h1>&#127918; MCADV Adventure Bot</h1>
+    <nav>
+      <a href="index.html">Dashboard</a>
+      <a href="sessions.html">Sessions</a>
+      <a href="stats.html">Stats</a>
+      <a href="admin.html" class="active">Admin</a>
+    </nav>
+    <span id="bot-status" class="status-badge status-unknown">Checking…</span>
+  </header>
+
+  <main>
+    <section>
+      <h2>Admin Controls</h2>
+      <div class="admin-card">
+        <h3>Sessions</h3>
+        <button id="reset-sessions-btn" class="btn btn-danger">Reset All Sessions</button>
+        <p class="hint">Clears all active adventure sessions. Players will need to restart with <code>!adv</code>.</p>
+      </div>
+      <div class="admin-card">
+        <h3>Health Check</h3>
+        <button id="health-check-btn" class="btn">Check Bot Health</button>
+        <pre id="health-result" class="code-output"></pre>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>MCADV &mdash; <a href="../index.html">Back to site</a></p>
+  </footer>
+
+  <script src="js/dashboard.js"></script>
+</body>
+</html>
