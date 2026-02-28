@@ -129,7 +129,7 @@ class RadioGateway:
                 self.stats["messages_failed"] += 1
                 self.logger.warning(f"No response from bot server for message from {sender}")
 
-        except Exception as e:
+        except (ConnectionError, TimeoutError, ValueError) as e:
             self.stats["messages_failed"] += 1
             self.error_logger.exception(f"Error handling message from {sender}")
             self.logger.error(f"Error handling message: {e}")
@@ -203,7 +203,7 @@ class RadioGateway:
                 if data.get("message"):
                     channel_idx = data.get("channel_idx", 0)
                     self._send_response(data["message"], channel_idx)
-        except Exception as e:
+        except (ConnectionError, TimeoutError, ValueError, json.JSONDecodeError) as e:
             self.logger.debug(f"Broadcast poll error: {e}")
 
     def run(self) -> None:

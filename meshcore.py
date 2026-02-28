@@ -106,8 +106,11 @@ class MeshCoreMessage:
     @classmethod
     def from_json(cls, json_str: str) -> "MeshCoreMessage":
         """Create message from JSON string"""
-        data = json.loads(json_str)
-        return cls.from_dict(data)
+        try:
+            data = json.loads(json_str)
+            return cls.from_dict(data)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON string: {e}") from e
 
 
 # Standard serial baud rates accepted for preflight validation
