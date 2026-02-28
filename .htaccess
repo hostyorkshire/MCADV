@@ -1,0 +1,11 @@
+# Protect .git directory from web access
+<DirectoryMatch "^/.*/\.git/">
+    Order deny,allow
+    Deny from all
+</DirectoryMatch>
+
+# Deny access to dot-files and dot-directories
+<FilesMatch "^\.(git|env|gitignore|htaccess|pylintrc|flake8|pre-commit-config)">
+    Order deny,allow
+    Deny from all
+</FilesMatch>
