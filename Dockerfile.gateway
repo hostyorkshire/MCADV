@@ -1,0 +1,17 @@
+# Lightweight image for Pi Zero 2W gateway (radio only, no Flask)
+FROM python:3.11-slim
+
+RUN groupadd -r mcadv && useradd -r -g mcadv -d /app -s /sbin/nologin mcadv
+
+WORKDIR /app
+
+# Install only the minimal deps needed for the gateway
+RUN pip install --no-cache-dir requests pyserial
+
+COPY meshcore.py radio_gateway.py logging_config.py ./
+
+RUN chown -R mcadv:mcadv /app
+
+USER mcadv
+
+CMD ["python", "radio_gateway.py"]

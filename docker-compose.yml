@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  bot-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./sessions:/app/sessions
+      - ./logs:/app/logs
+    environment:
+      - BOT_HOST=0.0.0.0
+      - BOT_PORT=5000
+      - OLLAMA_URL=http://ollama:11434
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles:
+      - gpu
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    profiles:
+      - monitoring
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    restart: unless-stopped
+
+volumes:
+  ollama_data:

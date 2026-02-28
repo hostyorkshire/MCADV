@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Statistics – MCADV</title>
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+  <header>
+    <h1>&#127918; MCADV Adventure Bot</h1>
+    <nav>
+      <a href="index.html">Dashboard</a>
+      <a href="sessions.html">Sessions</a>
+      <a href="stats.html" class="active">Stats</a>
+      <a href="admin.html">Admin</a>
+    </nav>
+    <span id="bot-status" class="status-badge status-unknown">Checking…</span>
+  </header>
+
+  <main>
+    <section>
+      <h2>Statistics</h2>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <h3>Message Latency (avg)</h3>
+          <p id="latency-avg" class="metric-value">—</p>
+        </div>
+        <div class="stat-box">
+          <h3>LLM Response Time (avg)</h3>
+          <p id="llm-avg" class="metric-value">—</p>
+        </div>
+        <div class="stat-box">
+          <h3>Total Errors</h3>
+          <p id="total-errors" class="metric-value">—</p>
+        </div>
+        <div class="stat-box">
+          <h3>Peak Sessions</h3>
+          <p id="peak-sessions" class="metric-value">—</p>
+        </div>
+      </div>
+
+      <h3>Chart Placeholder</h3>
+      <div class="chart-placeholder">
+        <p>Charts will be rendered here (requires Chart.js integration).</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>MCADV &mdash; <a href="../index.html">Back to site</a></p>
+  </footer>
+
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

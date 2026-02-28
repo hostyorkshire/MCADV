@@ -1,0 +1,15 @@
+version: "3.9"
+
+# Development override – mounts source code and enables Flask debug mode.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  bot-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+    environment:
+      - BOT_DEBUG=true
+    command: ["python", "adventure_bot.py", "--distributed-mode", "--debug"]
