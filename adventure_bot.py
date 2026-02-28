@@ -10,13 +10,16 @@ import argparse
 import json
 import logging
 import os
+import re
 import time
+import uuid
 from pathlib import Path
 from threading import Lock
 from typing import Dict, List, Optional, Set
 
 import requests
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from werkzeug.exceptions import BadRequest
 
 from meshcore import MeshCoreMessage
@@ -282,6 +285,13 @@ for theme in VALID_THEMES:
     if theme not in FALLBACK_STORIES:
         FALLBACK_STORIES[theme] = _FANTASY_STORY
 
+_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
+
+
+def _is_valid_uuid(value: str) -> bool:
+    """Return True if *value* is a valid UUID string (case-insensitive)."""
+    return bool(_UUID_RE.match(value))
+
 # =============================================================================
 # ADVENTURE BOT CLASS
 # =============================================================================
@@ -332,6 +342,12 @@ class AdventureBot:
 
         # Set up Flask app for HTTP mode
         self.app = Flask(__name__)
+
+        # Enable CORS for web interface
+        if os.getenv("WEB_INTERFACE_ENABLED", "true").lower() == "true":
+            allowed_origins = os.getenv("CORS_ALLOWED_ORIGINS", "*").split(",")
+            CORS(self.app, origins=allowed_origins)
+
         self._setup_routes()
 
     def _setup_routes(self):
@@ -356,7 +372,121 @@ class AdventureBot:
 
         @self.app.route("/api/health", methods=["GET"])
         def health():
-            return jsonify({"status": "healthy"})
+            mode = "distributed" if self.distributed_mode else "http"
+            return jsonify({"status": "healthy", "mode": mode})
+
+        @self.app.route("/api/themes", methods=["GET"])
+        def themes():
+            return jsonify({"themes": VALID_THEMES})
+
+        @self.app.route("/api/adventure/start", methods=["POST"])
+        def adventure_start():
+            try:
+                data = request.get_json(silent=False) or {}
+            except BadRequest as e:
+                return jsonify({"error": f"Failed to parse JSON: {str(e)}"}), 400
+
+            theme = data.get("theme", "fantasy")
+            if theme not in VALID_THEMES:
+                return jsonify({"error": f"Invalid theme. Valid themes: {', '.join(VALID_THEMES)}"}), 400
+
+            # Use provided session_id or generate a new one
+            raw_id = data.get("session_id")
+            if raw_id is None:
+                raw_id = str(uuid.uuid4())
+            # Validate UUID format if provided
+            if not _is_valid_uuid(raw_id):
+                return jsonify({"error": "Invalid session_id format (must be UUID)"}), 400
+
+            session_key = self._session_key_web(raw_id)
+            self._clear_session(session_key)
+            self._update_session(
+                session_key,
+                {"status": "active", "theme": theme, "node": "start", "history": []},
+            )
+            self._last_story_activity = time.time()
+
+            story_text = self._generate_story(session_key, None, theme)
+            session = self._get_session(session_key)
+            choices = self._get_current_choices(session_key, theme)
+            status = session.get("status", "active")
+
+            return jsonify(
+                {
+                    "session_id": raw_id,
+                    "story": story_text,
+                    "choices": choices,
+                    "status": status,
+                }
+            )
+
+        @self.app.route("/api/adventure/choice", methods=["POST"])
+        def adventure_choice():
+            try:
+                data = request.get_json(silent=False) or {}
+            except BadRequest as e:
+                return jsonify({"error": f"Failed to parse JSON: {str(e)}"}), 400
+
+            raw_id = data.get("session_id", "")
+            choice = str(data.get("choice", ""))
+
+            if not raw_id or not _is_valid_uuid(raw_id):
+                return jsonify({"error": "Invalid or missing session_id (must be UUID)"}), 400
+
+            if choice not in ("1", "2", "3"):
+                return jsonify({"error": "Choice must be 1, 2, or 3"}), 400
+
+            session_key = self._session_key_web(raw_id)
+            session = self._get_session(session_key)
+            if not session or session.get("status") != "active":
+                return jsonify({"error": "No active adventure for this session"}), 404
+
+            theme = session.get("theme", "fantasy")
+            self._last_story_activity = time.time()
+
+            story_text = self._generate_story(session_key, choice, theme)
+            session = self._get_session(session_key)
+            status = session.get("status", "active")
+            choices = self._get_current_choices(session_key, theme) if status == "active" else []
+
+            if status == "finished":
+                self._clear_session(session_key)
+
+            return jsonify({"story": story_text, "choices": choices, "status": status})
+
+        @self.app.route("/api/adventure/status", methods=["GET"])
+        def adventure_status():
+            raw_id = request.args.get("session_id", "")
+            if not raw_id or not _is_valid_uuid(raw_id):
+                return jsonify({"error": "Invalid or missing session_id (must be UUID)"}), 400
+
+            session_key = self._session_key_web(raw_id)
+            session = self._get_session(session_key)
+            if not session:
+                return jsonify({"status": "none", "theme": None, "history_length": 0})
+
+            return jsonify(
+                {
+                    "status": session.get("status", "none"),
+                    "theme": session.get("theme"),
+                    "history_length": len(session.get("history", [])),
+                }
+            )
+
+        @self.app.route("/api/adventure/quit", methods=["POST"])
+        def adventure_quit():
+            try:
+                data = request.get_json(silent=False) or {}
+            except BadRequest as e:
+                return jsonify({"error": f"Failed to parse JSON: {str(e)}"}), 400
+
+            raw_id = data.get("session_id", "")
+            if not raw_id or not _is_valid_uuid(raw_id):
+                return jsonify({"error": "Invalid or missing session_id (must be UUID)"}), 400
+
+            session_key = self._session_key_web(raw_id)
+            self._clear_session(session_key)
+            return jsonify({"message": "Adventure ended", "status": "quit"})
 
     def _session_key(self, message: MeshCoreMessage) -> str:
         """
@@ -365,6 +495,22 @@ class AdventureBot:
         In collaborative mode, all users on the same channel share the same story.
         """
         return f"channel_{message.channel_idx}"
+
+    def _session_key_web(self, session_id: str) -> str:
+        """Generate session key for web users."""
+        return f"web_{session_id}"
+
+    def _is_web_session(self, session_key: str) -> bool:
+        """Check if session is from web interface."""
+        return session_key.startswith("web_")
+
+    def _get_current_choices(self, session_key: str, theme: str) -> List[str]:
+        """Return the list of available choices for the current story node."""
+        session = self._get_session(session_key)
+        current_node = session.get("node", "start")
+        story_tree = FALLBACK_STORIES.get(theme, _FANTASY_STORY)
+        node_data = story_tree.get(current_node, {})
+        return node_data.get("choices", [])
 
     def _is_admin(self, sender: str) -> bool:
         """Check if a sender is an admin. If no admins configured, everyone is admin."""
