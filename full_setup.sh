@@ -21,6 +21,7 @@ cd "$REPO_DIR"
 # Configuration variables (will be set by user choices)
 SETUP_VENV=""
 SERIAL_PORT=""
+DEVICE_ROLE=""        # bot_server | radio_gateway | standalone
 BAUD_RATE="115200"
 USE_CHANNEL=""
 CHANNEL_NAME=""
@@ -135,6 +136,71 @@ detect_serial_ports() {
     done
     
     echo "${ports[@]}"
+}
+
+# Detect hardware role from system info
+_detect_hardware_role() {
+    local model=""
+    [ -f /proc/device-tree/model ] && model="$(cat /proc/device-tree/model 2>/dev/null || true)"
+    if echo "$model" | grep -qi "zero 2"; then
+        echo "radio_gateway"
+    elif echo "$model" | grep -qiE "pi [45]|pi 3"; then
+        echo "bot_server"
+    elif grep -qi "ubuntu" /etc/os-release 2>/dev/null; then
+        echo "bot_server"
+    else
+        echo "unknown"
+    fi
+}
+
+_detect_platform_label() {
+    local model=""
+    [ -f /proc/device-tree/model ] && model="$(cat /proc/device-tree/model 2>/dev/null || true)"
+    if echo "$model" | grep -qi "zero 2"; then echo "Pi Zero 2W"
+    elif echo "$model" | grep -qi "pi 5";  then echo "Pi 5"
+    elif echo "$model" | grep -qi "pi 4";  then echo "Pi 4"
+    elif grep -qi "ubuntu" /etc/os-release 2>/dev/null; then echo "Ubuntu Desktop"
+    else echo "Unknown Hardware"
+    fi
+}
+
+select_device_role() {
+    print_header "Hardware Detection & Role Selection"
+
+    local detected_role
+    detected_role="$(_detect_hardware_role)"
+    local platform_label
+    platform_label="$(_detect_platform_label)"
+
+    echo "Detected Hardware: $platform_label"
+    if [ "$detected_role" != "unknown" ]; then
+        print_info "Recommended role based on hardware: $detected_role"
+    fi
+    echo ""
+
+    show_menu "What role will this device serve?" \
+        "Bot Server  (runs adventure_bot.py + Ollama)  [Pi 4/5 or Ubuntu Desktop]" \
+        "Radio Gateway  (runs radio_gateway.py + LoRa)  [Pi Zero 2W]" \
+        "Standalone  (all-in-one, no distributed mode)"
+
+    local choice
+    choice=$(get_input "Select role" "1")
+
+    case "$choice" in
+        1) DEVICE_ROLE="bot_server"
+           print_success "Role selected: Bot Server"
+           print_info "See: docs/hardware_setup/BOT_SERVER_SETUP.md" ;;
+        2) DEVICE_ROLE="radio_gateway"
+           print_success "Role selected: Radio Gateway"
+           print_info "See: docs/hardware_setup/RADIO_GATEWAY_SETUP.md" ;;
+        3) DEVICE_ROLE="standalone"
+           print_success "Role selected: Standalone (all-in-one)" ;;
+        *) print_error "Invalid choice; defaulting to Standalone"
+           DEVICE_ROLE="standalone" ;;
+    esac
+
+    echo ""
+    read -p "Press Enter to continue..."
 }
 
 setup_python_environment() {
@@ -573,15 +639,31 @@ test_configuration() {
 show_welcome() {
     clear
     echo ""
-    echo -e "${GREEN}================================================${NC}"
-    echo -e "${GREEN}  MCADV - Full Interactive Setup${NC}"
-    echo -e "${GREEN}  MeshCore Adventure Bot Configuration${NC}"
-    echo -e "${GREEN}================================================${NC}"
+
+    # Detect and display hardware role banner
+    local _role
+    _role="$(_detect_hardware_role)"
+    local _platform
+    _platform="$(_detect_platform_label)"
+    local _role_label _role_colour
+
+    case "$_role" in
+        bot_server)    _role_label="BOT SERVER";    _role_colour="$GREEN" ;;
+        radio_gateway) _role_label="RADIO GATEWAY"; _role_colour="$BLUE" ;;
+        *)             _role_label="UNKNOWN ROLE";  _role_colour="$YELLOW" ;;
+    esac
+
+    echo -e "${_role_colour}================================================${NC}"
+    echo -e "${_role_colour}  MCADV - Full Interactive Setup${NC}"
+    echo -e "${_role_colour}  MeshCore Adventure Bot Configuration${NC}"
+    echo -e "${_role_colour}  Detected: [${_role_label} - ${_platform}]${NC}"
+    echo -e "${_role_colour}================================================${NC}"
     echo ""
     echo "This script will guide you through configuring the"
     echo "MeshCore Adventure Bot with a menu-driven interface."
     echo ""
     echo "You can configure:"
+    echo "  ✓ Hardware role (Bot Server / Radio Gateway / Standalone)"
     echo "  ✓ Python environment and dependencies"
     echo "  ✓ Serial port and hardware settings"
     echo "  ✓ Channel restrictions"
@@ -595,6 +677,9 @@ show_welcome() {
 run_full_setup() {
     verify_not_root
     show_welcome
+    
+    # Detect and select hardware role first
+    select_device_role
     
     # Run setup steps
     setup_python_environment
@@ -653,6 +738,8 @@ run_full_setup() {
     echo "  - README.md - Quick start guide"
     echo "  - SETUP.md - Virtual environment details"
     echo "  - guides/OLLAMA_SETUP.md - LLM setup guide"
+    echo "  - docs/hardware_setup/BOT_SERVER_SETUP.md  - Bot server setup"
+    echo "  - docs/hardware_setup/RADIO_GATEWAY_SETUP.md - Radio gateway setup"
     echo ""
     
     # Offer to test

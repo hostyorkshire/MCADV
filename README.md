@@ -15,6 +15,65 @@ AI-powered Choose Your Own Adventure bot for MeshCore LoRa mesh networks.
 
 This creates a unique, dynamic storytelling experience where the mesh community works together to navigate challenges and reach conclusions.
 
+## Hardware Setup
+
+MCADV uses a distributed architecture with two hardware components:
+
+### 🧠 Bot Server (Raspberry Pi 5 or Ubuntu Desktop)
+
+Runs the main bot logic and AI models.
+
+- **For Testing/Development:** Ubuntu Desktop
+- **For Production:** Raspberry Pi 5 (8 GB recommended)
+- [Setup Guide](docs/hardware_setup/BOT_SERVER_SETUP.md)
+
+### 📻 Radio Gateway (Raspberry Pi Zero 2W)
+
+Handles LoRa mesh communication and forwards messages to the Bot Server.
+
+- **Required:** Raspberry Pi Zero 2W + MeshCore-compatible LoRa radio
+- [Setup Guide](docs/hardware_setup/RADIO_GATEWAY_SETUP.md)
+
+### 🔄 Migration Path
+
+1. Develop and test on Ubuntu Desktop
+2. Test integration with Pi Zero 2W radio gateway
+3. Migrate bot server to Pi 5 for production
+
+- [Migration Guide](docs/hardware_setup/MIGRATION_DESKTOP_TO_PI5.md)
+
+## Quick Start by Hardware Role
+
+### On Bot Server (Ubuntu Desktop or Pi 5)
+
+```bash
+./full_setup.sh
+# Select: 1) Bot Server
+
+./scripts/testing/test_bot_server.sh
+./scripts/pre_deployment_check.sh
+```
+
+### On Radio Gateway (Pi Zero 2W)
+
+```bash
+./full_setup.sh
+# Select: 2) Radio Gateway
+
+./scripts/testing/test_radio_gateway.sh
+./scripts/pre_deployment_check.sh
+```
+
+### Test Distributed Integration
+
+```bash
+# From either device
+./scripts/testing/test_distributed_integration.sh --bot-server <hostname>
+
+# Test network connectivity
+./scripts/testing/test_network_connectivity.sh --bot-server <hostname>
+```
+
 ## Quick Setup
 
 For detailed setup instructions with virtual environment (recommended):
@@ -28,6 +87,7 @@ For detailed setup instructions with virtual environment (recommended):
 ```
 
 This will guide you through:
+- **Hardware role selection** (Bot Server / Radio Gateway / Standalone)
 - Python environment setup
 - Serial port detection and configuration
 - Channel and LLM backend configuration
@@ -109,6 +169,14 @@ See [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) and [docs/FIELD_TESTING.md](d
 - **[docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md)** - Testing scripts and procedures
 - **[docs/FIELD_TESTING.md](docs/FIELD_TESTING.md)** - Field testing procedures and checklists
 - **[guides/](guides/)** - Detailed setup guides (Ollama, Raspberry Pi, Production Deployment, etc.)
+
+### Hardware Setup Guides
+
+- **[docs/hardware_setup/BOT_SERVER_SETUP.md](docs/hardware_setup/BOT_SERVER_SETUP.md)** - Bot Server (Pi 5 / Ubuntu Desktop) setup
+- **[docs/hardware_setup/RADIO_GATEWAY_SETUP.md](docs/hardware_setup/RADIO_GATEWAY_SETUP.md)** - Radio Gateway (Pi Zero 2W) setup
+- **[docs/hardware_setup/POWER_MANAGEMENT.md](docs/hardware_setup/POWER_MANAGEMENT.md)** - Power consumption and battery sizing
+- **[docs/hardware_setup/PHYSICAL_SETUP.md](docs/hardware_setup/PHYSICAL_SETUP.md)** - Enclosures, antennas, and cable management
+- **[docs/hardware_setup/MIGRATION_DESKTOP_TO_PI5.md](docs/hardware_setup/MIGRATION_DESKTOP_TO_PI5.md)** - Migrating from Ubuntu Desktop to Pi 5
 
 ## Quick Model Selection Guide
 
