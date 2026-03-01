@@ -6,6 +6,16 @@ AI-powered Choose Your Own Adventure bot for MeshCore LoRa mesh networks.
 
 **Offline-First Architecture:** MCADV runs entirely offline using locally-hosted AI models via Ollama—requiring no internet access whatsoever. The network depends solely on the meshcore LoRa mesh network, making it truly independent from external connectivity.
 
+## 🌐 Play via Web Browser
+
+No Meshtastic hardware? No problem! You can play adventures directly in your browser via the built-in web interface.
+
+1. Start the adventure bot server: `python adventure_bot.py`
+2. Open `website/play.html` (or navigate to your deployment URL)
+3. Choose a theme, press **Begin Adventure**, and enjoy!
+
+See [docs/WEB_INTERFACE.md](docs/WEB_INTERFACE.md) for full API documentation, CORS configuration, and deployment guidance.
+
 ## 🎭 Collaborative Storytelling
 
 **MCADV features collaborative storytelling** where all users on the **#adventures** channel participate in the same shared story. This isn't a solo adventure—it's a community effort where:
@@ -191,22 +201,7 @@ sudo ./scripts/deployment/install_service.sh
 
 See [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) and [docs/FIELD_TESTING.md](docs/FIELD_TESTING.md) for comprehensive testing procedures.
 
-## 🖥️ Terminal/CLI Interface
 
-Play MCADV adventures directly in your terminal with rich formatting and ASCII art!
-
-### Quick Start
-
-```bash
-# Install dependencies
-pip install -r requirements-terminal.txt
-
-# Start playing (server must be running first)
-python terminal_client.py play
-```
-
-See [Terminal Client Documentation](docs/TERMINAL_CLIENT.md) for full details including
-remote server usage, theme selection, history, and configuration.
 
 ## Documentation
 

@@ -60,7 +60,7 @@ class TestDistributedMode(unittest.TestCase):
 
     def test_choice_after_start_returns_response(self):
         self.bot.handle_message(_msg(content="!adv"))
-        reply = self.bot.handle_message(_msg(content="1"))
+        reply = self.bot.handle_message(_msg(content="A"))
         self.assertIsNotNone(reply)
 
     def test_help_returns_command_list(self):
@@ -83,7 +83,7 @@ class TestDistributedMode(unittest.TestCase):
 
     def test_session_persists_across_multiple_messages(self):
         self.bot.handle_message(_msg(content="!adv horror"))
-        self.bot.handle_message(_msg(content="1"))
+        self.bot.handle_message(_msg(content="A"))
         key = "channel_1"
         session = self.bot._get_session(key)
         # Session may have been cleared if terminal node reached, that's OK
@@ -157,7 +157,7 @@ class TestGatewayBotCommunication(unittest.TestCase):
         )
         resp = self.client.post(
             "/api/message",
-            json={"sender": "GW", "content": "2", "channel_idx": 1},
+            json={"sender": "GW", "content": "B", "channel_idx": 1},
         )
         self.assertEqual(resp.status_code, 200)
 
@@ -288,7 +288,7 @@ class TestMultiUserScenarios(unittest.TestCase):
     def test_sequential_choices_advance_story(self):
         self.bot.handle_message(_msg(content="!adv fantasy", channel_idx=1))
         node_start = self.bot._get_session("channel_1").get("node")
-        self.bot.handle_message(_msg(content="1", channel_idx=1))
+        self.bot.handle_message(_msg(content="A", channel_idx=1))
         session = self.bot._get_session("channel_1")
         # Either advanced or session cleared (terminal reached)
         if session:
