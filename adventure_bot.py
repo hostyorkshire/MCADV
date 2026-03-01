@@ -292,6 +292,7 @@ def _is_valid_uuid(value: str) -> bool:
     """Return True if *value* is a valid UUID string (case-insensitive)."""
     return bool(_UUID_RE.match(value))
 
+
 # =============================================================================
 # ADVENTURE BOT CLASS
 # =============================================================================

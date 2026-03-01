@@ -11,7 +11,7 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
 
 import requests
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update
@@ -151,7 +151,6 @@ class MCADVTelegramBot:
             update.message.reply_text(result["message"])
             return
 
-        session = self.sessions.get(session_key, {})
         story = result.get("story", "")
         choices = result.get("choices", [])
 
@@ -183,7 +182,9 @@ class MCADVTelegramBot:
         session = self.sessions.get(session_key)
 
         if not session or session.get("status") != "active":
-            update.message.reply_text("📭 No active adventure. Use /play to start one\\!", parse_mode=ParseMode.MARKDOWN_V2)
+            update.message.reply_text(
+                "📭 No active adventure. Use /play to start one\\!", parse_mode=ParseMode.MARKDOWN_V2
+            )
             return
 
         theme = session.get("theme", "unknown")
@@ -199,7 +200,9 @@ class MCADVTelegramBot:
         """Handle /quit command."""
         session_key = self._session_key(update)
         self.quit_adventure(session_key)
-        update.message.reply_text("🛑 Adventure ended\\. Type /play to start a new one\\!", parse_mode=ParseMode.MARKDOWN_V2)
+        update.message.reply_text(
+            "🛑 Adventure ended\\. Type /play to start a new one\\!", parse_mode=ParseMode.MARKDOWN_V2
+        )
 
     def cmd_about(self, update: Update, context: CallbackContext):
         """Handle /about command."""
@@ -229,11 +232,13 @@ class MCADVTelegramBot:
 
             if data == "quit":
                 self.quit_adventure(session_key)
-                query.edit_message_text("🛑 Adventure ended\\. Type /play to start a new one\\!", parse_mode=ParseMode.MARKDOWN_V2)
+                query.edit_message_text(
+                    "🛑 Adventure ended\\. Type /play to start a new one\\!", parse_mode=ParseMode.MARKDOWN_V2
+                )
                 return
 
             if data.startswith("theme_"):
-                theme = data[len("theme_"):]
+                theme = data[len("theme_") :]
                 result = self.start_adventure(session_key, theme)
                 if result.get("error"):
                     query.edit_message_text(result["message"])
@@ -248,7 +253,7 @@ class MCADVTelegramBot:
                 return
 
             if data.startswith("choice_"):
-                choice_num = int(data[len("choice_"):])
+                choice_num = int(data[len("choice_") :])
                 result = self.make_choice(session_key, choice_num)
                 if result.get("error"):
                     query.edit_message_text(result["message"])

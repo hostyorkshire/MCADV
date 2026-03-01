@@ -292,9 +292,7 @@ class MCADVTerminalClient:
 
         # Server connectivity check
         if not self.check_server():
-            self.console.print(
-                f"[bold red]❌ Cannot connect to MCADV server at {self.server_url}![/bold red]"
-            )
+            self.console.print(f"[bold red]❌ Cannot connect to MCADV server at {self.server_url}![/bold red]")
             self.console.print("[red]Make sure the server is running:[/red]")
             self.console.print("[yellow]  python adventure_bot.py --http-port 5000[/yellow]")
             sys.exit(1)
@@ -346,10 +344,14 @@ class MCADVTerminalClient:
         # Main loop
         valid_choices = [str(i + 1) for i in range(len(choices))]
         while True:
-            choice_input = Prompt.ask(
-                "[bold yellow]⚔ What will you do?[/bold yellow]",
-                default=valid_choices[0] if valid_choices else "quit",
-            ).strip().lower()
+            choice_input = (
+                Prompt.ask(
+                    "[bold yellow]⚔ What will you do?[/bold yellow]",
+                    default=valid_choices[0] if valid_choices else "quit",
+                )
+                .strip()
+                .lower()
+            )
 
             if choice_input == "quit":
                 if Confirm.ask("[bold red]Are you sure you want to quit?[/bold red]", default=False):
@@ -430,8 +432,7 @@ class MCADVTerminalClient:
         """Display current adventure status."""
         self.console.print(
             Panel(
-                f"[cyan]Server:[/cyan]  {self.server_url}\n"
-                f"[cyan]Steps:[/cyan]   {steps}",
+                f"[cyan]Server:[/cyan]  {self.server_url}\n[cyan]Steps:[/cyan]   {steps}",
                 title="[bold magenta]ℹ Adventure Status[/bold magenta]",
                 border_style="magenta",
                 box=box.ROUNDED,
@@ -490,9 +491,7 @@ def health(client: MCADVTerminalClient) -> None:
     if client.check_server():
         client.console.print("[bold green]✅ Server is healthy and reachable![/bold green]")
     else:
-        client.console.print(
-            f"[bold red]❌ Cannot reach server at {client.server_url}[/bold red]"
-        )
+        client.console.print(f"[bold red]❌ Cannot reach server at {client.server_url}[/bold red]")
         sys.exit(1)
 
 
