@@ -9,7 +9,10 @@ This is the static website for the MCADV project, styled as a medieval bulletin 
 
 ## Deployment
 
-This website is designed to be deployed on Netlify. It will automatically deploy on git pull.
+This website is deployed to cPanel using cPanel's built-in Git Version Control feature. Pushing to the `main` branch on GitHub triggers an automatic pull to the live server.
+
+For setup and configuration instructions, see [docs/CPANEL_DEPLOYMENT.md](../docs/CPANEL_DEPLOYMENT.md).  
+For a quick reference checklist, see [docs/QUICK_START_CPANEL.md](../docs/QUICK_START_CPANEL.md).
 
 ## Design Philosophy
 

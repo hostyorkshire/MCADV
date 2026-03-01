@@ -191,6 +191,17 @@ sudo ./scripts/deployment/install_service.sh
 
 See [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) and [docs/FIELD_TESTING.md](docs/FIELD_TESTING.md) for comprehensive testing procedures.
 
+## Website Deployment (cPanel)
+
+The MCADV website (`website/` directory) is deployed to cPanel using cPanel's built-in Git Version Control. Pushes to `main` trigger automatic deployment via GitHub webhooks.
+
+| Guide | Description |
+|-------|-------------|
+| **[docs/CPANEL_DEPLOYMENT.md](docs/CPANEL_DEPLOYMENT.md)** | Full cPanel Git deployment guide (auth, webhooks, cron, troubleshooting) |
+| **[docs/QUICK_START_CPANEL.md](docs/QUICK_START_CPANEL.md)** | Quick-reference checklist for fast setup |
+| **[docs/GITHUB_WEBHOOK_SETUP.md](docs/GITHUB_WEBHOOK_SETUP.md)** | Detailed GitHub webhook configuration |
+| **[docs/DEPLOYMENT_CHECKLIST.md](docs/DEPLOYMENT_CHECKLIST.md)** | Pre/post-deployment verification checklist |
+
 ## Documentation
 
 - **[SETUP.md](SETUP.md)** - Virtual environment setup and usage guide
