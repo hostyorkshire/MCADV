@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Play Now – MCADV Adventure Bot</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="game.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Cinzel:wght@400;700&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="parchment-container game-layout">
+
+        <!-- ============================================================
+             HEADER
+             ============================================================ -->
+        <header class="herald-header game-header">
+            <h1 class="title-gothic">⚔ Meshcore Adventures ⚔</h1>
+            <p class="subtitle">Play via Web Browser</p>
+            <div class="decorative-line">◆ ◆ ◆</div>
+            <p class="small-text" style="margin-top:10px;">
+                <a href="index.html" style="color:var(--text-aged);">← Back to Herald</a>
+            </p>
+        </header>
+
+        <!-- ============================================================
+             MAIN GAME COLUMN
+             ============================================================ -->
+        <main class="game-main">
+
+            <!-- Controls -->
+            <section class="controls-panel proclamation" style="padding:16px;">
+                <select id="theme-select" class="theme-select" aria-label="Choose theme">
+                    <!-- Populated by game.js -->
+                </select>
+                <button id="btn-start" class="ctrl-btn ctrl-btn-start">⚔ Begin Adventure</button>
+                <button id="btn-end"   class="ctrl-btn ctrl-btn-end"   disabled>🛑 End Adventure</button>
+                <div class="status-indicator">
+                    <span id="status-dot"   class="status-dot none"></span>
+                    <span id="status-label">No Adventure</span>
+                </div>
+            </section>
+
+            <!-- Story display -->
+            <section class="story-panel proclamation" style="position:relative;">
+                <p id="story-text" class="story-text">
+                    <span class="story-placeholder">Select a theme and press "Begin Adventure" to start your quest.</span>
+                </p>
+                <div id="loading-overlay" class="loading-overlay" role="status" aria-label="Loading">
+                    <span class="hourglass" aria-hidden="true">⏳</span>
+                </div>
+            </section>
+
+            <!-- Choice buttons -->
+            <section id="choices-container" class="choices-panel" aria-label="Story choices">
+                <!-- Populated by game.js -->
+            </section>
+
+        </main>
+
+        <!-- ============================================================
+             SIDEBAR
+             ============================================================ -->
+        <aside class="game-sidebar">
+
+            <!-- Story history -->
+            <div class="history-panel proclamation" style="border:2px solid var(--border-ornate);padding:0;">
+                <div id="history-header" class="history-header" role="button" aria-expanded="true" tabindex="0">
+                    <span class="history-title">📜 Chronicle</span>
+                    <span id="history-toggle" class="history-toggle">▼</span>
+                </div>
+                <div id="history-list" class="history-list" aria-label="Story history">
+                    <p class="history-empty">Your chronicle is empty.</p>
+                </div>
+            </div>
+
+            <!-- Quick reference -->
+            <div class="info-panel proclamation">
+                <h3>Quick Guide</h3>
+                <ul>
+                    <li>Choose a theme</li>
+                    <li>Press Begin Adventure</li>
+                    <li>Click a numbered choice</li>
+                    <li>Story advances for you</li>
+                    <li>End Adventure to quit</li>
+                </ul>
+            </div>
+
+        </aside>
+
+    </div>
+
+    <div class="corner-ornament top-left">❖</div>
+    <div class="corner-ornament top-right">❖</div>
+    <div class="corner-ornament bottom-left">❖</div>
+    <div class="corner-ornament bottom-right">❖</div>
+
+    <script src="game.js"></script>
+</body>
+</html>
