@@ -432,7 +432,7 @@ class MCADVTerminalClient:
         """Display current adventure status."""
         self.console.print(
             Panel(
-                f"[cyan]Server:[/cyan]  {self.server_url}\n" f"[cyan]Steps:[/cyan]   {steps}",
+                f"[cyan]Server:[/cyan]  {self.server_url}\n[cyan]Steps:[/cyan]   {steps}",
                 title="[bold magenta]ℹ Adventure Status[/bold magenta]",
                 border_style="magenta",
                 box=box.ROUNDED,
