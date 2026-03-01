@@ -13,7 +13,7 @@ from unittest.mock import MagicMock
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from adventure_bot import AdventureBot, VALID_THEMES, _is_valid_uuid  # noqa: E402
+from adventure_bot import VALID_THEMES, AdventureBot, _is_valid_uuid  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -239,9 +239,7 @@ class TestAdventureChoice(unittest.TestCase):
         self.assertEqual(resp.status_code, 400)
 
     def test_nonexistent_session_returns_404(self):
-        resp = self._choice(
-            {"session_id": "00000000-0000-0000-0000-000000000000", "choice": "1"}
-        )
+        resp = self._choice({"session_id": "00000000-0000-0000-0000-000000000000", "choice": "1"})
         self.assertEqual(resp.status_code, 404)
 
     def test_finished_adventure_clears_session(self):

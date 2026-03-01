@@ -207,12 +207,7 @@ class TestMCADVTerminalClient(unittest.TestCase):
     # ------------------------------------------------------------------
 
     def test_parse_response_extracts_choices(self):
-        response = (
-            "You stand at a crossroads.\n"
-            "1. Go north\n"
-            "2. Go east\n"
-            "3. Turn back\n"
-        )
+        response = "You stand at a crossroads.\n" "1. Go north\n" "2. Go east\n" "3. Turn back\n"
         story, choices = MCADVTerminalClient._parse_response(response)
         self.assertIn("crossroads", story)
         self.assertEqual(len(choices), 3)

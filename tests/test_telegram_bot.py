@@ -188,9 +188,7 @@ class TestMCADVTelegramBot(unittest.TestCase):
     def test_start_adventure_success(self, mock_post):
         mock_post.return_value.status_code = 200
         mock_post.return_value.raise_for_status = MagicMock()
-        mock_post.return_value.json.return_value = {
-            "response": "You stand at a crossroads.\n1:North 2:East 3:South"
-        }
+        mock_post.return_value.json.return_value = {"response": "You stand at a crossroads.\n1:North 2:East 3:South"}
         with tempfile.TemporaryDirectory() as tmp:
             bot = self._make_bot(tmp)
             result = bot.start_adventure("user_1", "fantasy")
@@ -217,9 +215,7 @@ class TestMCADVTelegramBot(unittest.TestCase):
     def test_make_choice_success(self, mock_post):
         mock_post.return_value.status_code = 200
         mock_post.return_value.raise_for_status = MagicMock()
-        mock_post.return_value.json.return_value = {
-            "response": "You enter the forest.\n1:Fight 2:Flee 3:Hide"
-        }
+        mock_post.return_value.json.return_value = {"response": "You enter the forest.\n1:Fight 2:Flee 3:Hide"}
         with tempfile.TemporaryDirectory() as tmp:
             bot = self._make_bot(tmp)
             bot.sessions["user_1"] = {"status": "active", "theme": "fantasy", "channel_idx": 1}
