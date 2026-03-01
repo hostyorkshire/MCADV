@@ -78,12 +78,12 @@ _FANTASY_STORY = {
     "start": {
         "text": "You stand at a crossroads. A path to the north leads into a dark forest. To the east, a mountain trail. To the south, a village.",
         "choices": ["North", "East", "South"],
-        "next": {"1": "forest", "2": "mountain", "3": "village"},
+        "next": {"A": "forest", "B": "mountain", "C": "village"},
     },
     "forest": {
         "text": "The forest is thick and eerie. You hear rustling in the bushes.",
         "choices": ["Investigate", "Keep walking", "Turn back"],
-        "next": {"1": "creature", "2": "clearing", "3": "start"},
+        "next": {"A": "creature", "B": "clearing", "C": "start"},
     },
     "creature": {
         "text": "A friendly sprite appears! It offers you a magical amulet. THE END",
@@ -98,7 +98,7 @@ _FANTASY_STORY = {
     "mountain": {
         "text": "The mountain path is steep. Halfway up, you encounter a cave.",
         "choices": ["Enter cave", "Continue climbing", "Go back"],
-        "next": {"1": "cave", "2": "summit", "3": "start"},
+        "next": {"A": "cave", "B": "summit", "C": "start"},
     },
     "cave": {
         "text": "Inside the cave, you find ancient treasure! THE END",
@@ -113,7 +113,7 @@ _FANTASY_STORY = {
     "village": {
         "text": "The village is bustling. A merchant offers you a quest.",
         "choices": ["Accept quest", "Decline", "Browse market"],
-        "next": {"1": "quest", "2": "start", "3": "market"},
+        "next": {"A": "quest", "B": "start", "C": "market"},
     },
     "quest": {
         "text": "The merchant thanks you! Your adventure begins. THE END",
@@ -128,7 +128,7 @@ _FANTASY_STORY = {
     "road": {
         "text": "On the road, a troll demands payment!",
         "choices": ["Pay toll", "Fight", "Run away"],
-        "next": {"1": "road_pay", "2": "road_fight", "3": "start"},
+        "next": {"A": "road_pay", "B": "road_fight", "C": "start"},
     },
     "road_pay": {
         "text": "The troll lets you pass safely. THE END",
@@ -146,12 +146,12 @@ _SCIFI_STORY = {
     "start": {
         "text": "You wake up on a colony ship. Alarms blare. The AI reports: engine failure, alien contact, or mutiny.",
         "choices": ["Check engines", "Investigate signal", "Find crew"],
-        "next": {"1": "engines", "2": "signal", "3": "crew"},
+        "next": {"A": "engines", "B": "signal", "C": "crew"},
     },
     "engines": {
         "text": "The engine room is damaged. You can repair it or seal the breach.",
         "choices": ["Repair", "Seal breach", "Return"],
-        "next": {"1": "repaired", "2": "sealed", "3": "start"},
+        "next": {"A": "repaired", "B": "sealed", "C": "start"},
     },
     "repaired": {
         "text": "Engines restored! The ship is saved. THE END",
@@ -166,7 +166,7 @@ _SCIFI_STORY = {
     "signal": {
         "text": "An alien vessel approaches. They seem curious.",
         "choices": ["Attempt contact", "Prepare weapons", "Hide"],
-        "next": {"1": "contact", "2": "weapons", "3": "hide"},
+        "next": {"A": "contact", "B": "weapons", "C": "hide"},
     },
     "contact": {
         "text": "The aliens are friendly! They offer aid. THE END",
@@ -186,7 +186,7 @@ _SCIFI_STORY = {
     "crew": {
         "text": "You find the crew arguing. There's tension.",
         "choices": ["Mediate", "Take command", "Observe"],
-        "next": {"1": "mediate", "2": "command", "3": "observe"},
+        "next": {"A": "mediate", "B": "command", "C": "observe"},
     },
     "mediate": {
         "text": "Your diplomacy prevents a mutiny! THE END",
@@ -209,17 +209,17 @@ _HORROR_STORY = {
     "start": {
         "text": "You arrive at an abandoned manor at dusk. The front door creaks open. You hear whispers.",
         "choices": ["Enter", "Investigate grounds", "Leave"],
-        "next": {"1": "enter", "2": "grounds", "3": "escape"},
+        "next": {"A": "enter", "B": "grounds", "C": "escape"},
     },
     "enter": {
         "text": "Inside, a grand staircase looms. Shadows move on the walls.",
         "choices": ["Go upstairs", "Check basement", "Search ground floor"],
-        "next": {"1": "upstairs", "2": "basement", "3": "ground_floor"},
+        "next": {"A": "upstairs", "B": "basement", "C": "ground_floor"},
     },
     "upstairs": {
         "text": "You find a locked room. A key lies on a dusty table.",
         "choices": ["Use key", "Leave it", "Go back"],
-        "next": {"1": "locked_room", "2": "enter", "3": "enter"},
+        "next": {"A": "locked_room", "B": "enter", "C": "enter"},
     },
     "locked_room": {
         "text": "Inside, you discover the truth about the manor. THE END",
@@ -229,7 +229,7 @@ _HORROR_STORY = {
     "basement": {
         "text": "The basement is dark and damp. Something moves in the shadows.",
         "choices": ["Approach", "Run", "Stay still"],
-        "next": {"1": "approach", "2": "escape", "3": "still"},
+        "next": {"A": "approach", "B": "escape", "C": "still"},
     },
     "approach": {
         "text": "It's just a rat. You breathe a sigh of relief. THE END",
@@ -244,7 +244,7 @@ _HORROR_STORY = {
     "ground_floor": {
         "text": "You find a journal detailing the manor's dark history.",
         "choices": ["Read it", "Ignore it", "Take it"],
-        "next": {"1": "read", "2": "enter", "3": "take"},
+        "next": {"A": "read", "B": "enter", "C": "take"},
     },
     "read": {
         "text": "The journal reveals terrible secrets. THE END",
@@ -259,7 +259,7 @@ _HORROR_STORY = {
     "grounds": {
         "text": "The grounds are overgrown. You find an old cemetery.",
         "choices": ["Explore", "Return to manor", "Leave"],
-        "next": {"1": "cemetery", "2": "start", "3": "escape"},
+        "next": {"A": "cemetery", "B": "start", "C": "escape"},
     },
     "cemetery": {
         "text": "The graves are ancient. One is freshly disturbed. THE END",
@@ -576,11 +576,11 @@ class AdventureBot:
                 self._sessions = {}
 
     def _format_story_message(self, text: str, choices: List[str]) -> str:
-        """Format a story message with numbered choices."""
+        """Format a story message with lettered choices."""
         if not choices:
             return text
 
-        choice_text = " ".join([f"{i+1}:{c}" for i, c in enumerate(choices)])
+        choice_text = " ".join([f"{chr(65+i)}:{c}" for i, c in enumerate(choices)])
         return f"{text}\n{choice_text}"
 
     def _get_fallback_story(self, session_key: str, choice: Optional[str], theme: str) -> str:
@@ -635,11 +635,11 @@ class AdventureBot:
         prompt = f"You are a {theme} adventure game master. "
 
         if not history:
-            prompt += "Start a new adventure. Describe the opening scene and give 3 choices numbered 1, 2, 3."
+            prompt += "Start a new adventure. Describe the opening scene and give 3 choices labeled A, B, C."
         else:
             prompt += f"The player chose option {choice}. Continue the story. "
             prompt += f"Previous: {history[-1] if history else ''}. "
-            prompt += "Provide 3 new choices numbered 1, 2, 3, or end with 'THE END'."
+            prompt += "Provide 3 new choices labeled A, B, C, or end with 'THE END'."
 
         try:
             response = requests.post(
@@ -705,7 +705,7 @@ class AdventureBot:
                 f"MCADV Adventure Bot Commands:\n"
                 f"!adv [theme] - Start adventure (default: fantasy)\n"
                 f"!start [theme] - Start adventure\n"
-                f"1/2/3 - Make a choice\n"
+                f"A/B/C - Make a choice\n"
                 f"!quit - End adventure [ADMIN ONLY]\n"
                 f"!vote - Vote to end adventure (3 votes needed)\n"
                 f"!status - Check status\n"
@@ -769,8 +769,9 @@ class AdventureBot:
         if content == "!reset":
             return None
 
-        # Check for numeric choice
-        if content.isdigit():
+        # Check for letter choice (A/B/C, case-insensitive)
+        if content.upper() in ["A", "B", "C"]:
+            choice = content.upper()
             session = self._get_session(session_key)
 
             if not session or session.get("status") != "active":
@@ -782,7 +783,7 @@ class AdventureBot:
             self._last_story_activity = time.time()
 
             # Generate next part of story
-            result = self._generate_story(session_key, content, theme)
+            result = self._generate_story(session_key, choice, theme)
 
             # Check if adventure finished
             if self._get_session(session_key).get("status") == "finished":

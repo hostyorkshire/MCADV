@@ -86,14 +86,14 @@ class TestFormatStoryMessage(unittest.TestCase):
 
     def test_with_three_choices(self):
         msg = self.bot._format_story_message("A dark cave.", ["Go in", "Turn back", "Shout"])
-        self.assertIn("1:Go in", msg)
-        self.assertIn("2:Turn back", msg)
-        self.assertIn("3:Shout", msg)
+        self.assertIn("A:Go in", msg)
+        self.assertIn("B:Turn back", msg)
+        self.assertIn("C:Shout", msg)
 
     def test_terminal_node_returns_text_only(self):
         msg = self.bot._format_story_message("You win. THE END", [])
         self.assertEqual(msg, "You win. THE END")
-        self.assertNotIn("1:", msg)
+        self.assertNotIn("A:", msg)
 
     def test_newline_separates_text_and_choices(self):
         msg = self.bot._format_story_message("A scene.", ["A", "B", "C"])
@@ -185,17 +185,17 @@ class TestFallbackStory(unittest.TestCase):
     def test_start_returns_opening_scene(self):
         result = self.bot._get_fallback_story("Alice", choice=None, theme="fantasy")
         self.assertIn("crossroads", result)
-        self.assertIn("1:", result)
+        self.assertIn("A:", result)
 
     def test_choice_1_advances_to_forest(self):
         self.bot._get_fallback_story("Alice", choice=None, theme="fantasy")  # sets node="start"
-        result = self.bot._get_fallback_story("Alice", choice="1", theme="fantasy")
+        result = self.bot._get_fallback_story("Alice", choice="A", theme="fantasy")
         self.assertIn("forest", result.lower())
 
     def test_terminal_node_has_no_choices(self):
         self.bot._update_session("Alice", {"status": "active", "node": "road", "theme": "fantasy"})
-        result = self.bot._get_fallback_story("Alice", choice="1", theme="fantasy")
-        self.assertNotIn("1:", result)  # road_pay is terminal
+        result = self.bot._get_fallback_story("Alice", choice="A", theme="fantasy")
+        self.assertNotIn("A:", result)  # road_pay is terminal
         self.assertEqual(self.bot._get_session("Alice")["status"], "finished")
 
     def test_scifi_theme_loads_correctly(self):
@@ -208,8 +208,8 @@ class TestFallbackStory(unittest.TestCase):
 
     def test_invalid_choice_resets_to_start(self):
         self.bot._update_session("Alice", {"status": "active", "node": "road", "theme": "fantasy"})
-        # "9" is not a valid key in road.next
-        result = self.bot._get_fallback_story("Alice", choice="9", theme="fantasy")
+        # "Z" is not a valid key in road.next
+        result = self.bot._get_fallback_story("Alice", choice="Z", theme="fantasy")
         # Should reset to "start" node
         self.assertIn("crossroads", result)
 
@@ -297,22 +297,22 @@ class TestHandleMessage(unittest.TestCase):
     # -- choices --
 
     def test_choice_without_session_prompts_start(self):
-        reply = self.bot.handle_message(make_msg(content="1"))
+        reply = self.bot.handle_message(make_msg(content="A"))
         self.assertIn("!adv", reply)
 
     def test_choice_with_active_session_advances_story(self):
         key = get_session_key(1)
         self.bot._update_session(key, {"status": "active", "node": "start", "theme": "fantasy", "history": []})
-        reply = self.bot.handle_message(make_msg(content="1"))
+        reply = self.bot.handle_message(make_msg(content="A"))
         self.assertIsNotNone(reply)
         # Session should still be tracked
         self.assertIn(key, self.bot._sessions)
 
     def test_choice_on_terminal_node_clears_session(self):
-        # road_pay is terminal; node "road" -> choice "1" -> "road_pay"
+        # road_pay is terminal; node "road" -> choice "A" -> "road_pay"
         key = get_session_key(1)
         self.bot._update_session(key, {"status": "active", "node": "road", "theme": "fantasy", "history": []})
-        reply = self.bot.handle_message(make_msg(content="1"))
+        reply = self.bot.handle_message(make_msg(content="A"))
         self.assertIsNotNone(reply)
         # Session should be gone after reaching THE END
         self.assertEqual(self.bot._get_session(key), {})
@@ -503,7 +503,7 @@ class TestCollaborativeMode(unittest.TestCase):
         self.assertIsNotNone(reply1)
 
         # Bob makes a choice - should affect the shared story
-        reply2 = self.bot.handle_message(make_msg(sender="Bob", content="1", channel_idx=1))
+        reply2 = self.bot.handle_message(make_msg(sender="Bob", content="A", channel_idx=1))
         self.assertIsNotNone(reply2)
 
         # Verify both users share the same session
@@ -562,7 +562,7 @@ class TestCollaborativeMode(unittest.TestCase):
         self.bot.handle_message(make_msg(sender="Alice", content="!adv", channel_idx=1))
         before = self.bot._last_story_activity
         time.sleep(0.01)
-        self.bot.handle_message(make_msg(sender="Bob", content="1", channel_idx=1))
+        self.bot.handle_message(make_msg(sender="Bob", content="A", channel_idx=1))
         self.assertGreater(self.bot._last_story_activity, before)
 
     def test_multiple_users_can_make_choices(self):
@@ -570,8 +570,8 @@ class TestCollaborativeMode(unittest.TestCase):
         # Alice starts
         self.bot.handle_message(make_msg(sender="Alice", content="!adv", channel_idx=1))
 
-        # Bob makes choice 1
-        reply1 = self.bot.handle_message(make_msg(sender="Bob", content="1", channel_idx=1))
+        # Bob makes choice A
+        reply1 = self.bot.handle_message(make_msg(sender="Bob", content="A", channel_idx=1))
         self.assertIsNotNone(reply1)
 
         # Verify session exists and is active, finished, or cleared (if terminal node reached)
