@@ -1,0 +1,8 @@
+# Telegram Bot dependencies for MCADV
+# Install with: pip install -r requirements-telegram.txt
+
+python-telegram-bot>=13.0,<14.0
+# urllib3 2.x removed appengine support required by python-telegram-bot 13.x
+urllib3<2
+requests>=2.25.0
+python-dotenv>=0.19.0

@@ -1,0 +1,16 @@
+[Unit]
+Description=MCADV Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=mcadv
+WorkingDirectory=/opt/mcadv
+Environment="TELEGRAM_BOT_TOKEN=your_token_here"
+Environment="MCADV_SERVER_URL=http://localhost:5000"
+ExecStart=/usr/bin/python3 /opt/mcadv/telegram_bot.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
