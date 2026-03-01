@@ -10,6 +10,9 @@ pyserial>=3.5
 # Web server for distributed mode (bot server component)
 flask>=2.3.0
 
+# CORS support for web interface
+flask-cors>=4.0.0
+
 # Standard library modules (included with Python, listed for reference):
 # - argparse: Command-line argument parsing
 # - json: JSON encoding/decoding
